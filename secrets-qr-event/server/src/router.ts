@@ -492,10 +492,31 @@ export function createRouter(io?: Server) {
           existingCustomer: body.existingCustomer ?? false,
           consentWhatsapp: true, // WhatsApp is now compulsory
         },
+        include: {
+          event: true,
+        },
       });
 
-      // Note: visitor_welcome is now sent on first login, not during registration
-      // See /visitors/first-login endpoint
+      // Send welcome message after registration
+      const eventConfig = event.themeConfig as any;
+      const eventName = eventConfig?.visitorWelcomeEventName || event.name;
+      const eventGuide = eventConfig?.visitorWelcomeEventGuide || eventConfig?.welcomePdfLink || process.env.DEFAULT_WELCOME_PDF_LINK || "";
+      const emergencyContact = eventConfig?.visitorWelcomeEmergencyContact || eventConfig?.emergencyContact || process.env.DEFAULT_EMERGENCY_CONTACT || "+9779863832800";
+      
+      // Send welcome message (don't await - send in background)
+      sendWhatsAppNotification(
+        event.id,
+        "visitor_welcome",
+        visitor,
+        [
+          { type: "text", text: visitor.name },
+          { type: "text", text: eventName },
+          { type: "text", text: eventGuide },
+          { type: "text", text: emergencyContact },
+        ]
+      ).catch(err => {
+        console.error("Welcome message send error during registration:", err);
+      });
 
       res.json({ visitor, event });
     })

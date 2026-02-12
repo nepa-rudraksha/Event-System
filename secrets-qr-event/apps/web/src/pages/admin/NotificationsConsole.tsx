@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SectionCard, PrimaryButton, Field, Input } from "../../components/ui";
 import { AdminNav } from "../../components/AdminNav";
-import { fetchWhatsAppTemplates, createWhatsAppTemplate, sendAnnouncement } from "../../lib/api";
-import { getAdminToken } from "../../lib/adminSession";
+import { fetchWhatsAppTemplates, createWhatsAppTemplate, sendAnnouncement, api } from "../../lib/api";
 
 export default function NotificationsConsole() {
   const { eventId } = useParams();
@@ -16,12 +15,64 @@ export default function NotificationsConsole() {
   const [announcementMessage, setAnnouncementMessage] = useState("");
   const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
   const [announcementResult, setAnnouncementResult] = useState<{ sent: number; failed: number; total: number; batches: number; message: string } | null>(null);
+  
+  // Visitor Welcome Configuration
+  const [event, setEvent] = useState<any>(null);
+  const [welcomeConfig, setWelcomeConfig] = useState({
+    eventName: "",
+    eventGuide: "",
+    emergencyContact: "",
+  });
+  const [savingWelcomeConfig, setSavingWelcomeConfig] = useState(false);
 
   useEffect(() => {
     if (eventId) {
       loadTemplates();
+      loadEvent();
     }
   }, [eventId]);
+  
+  const loadEvent = async () => {
+    if (!eventId) return;
+    try {
+      const res = await api.get(`/admin/event/${eventId}`);
+      setEvent(res.data);
+      const themeConfig = res.data.themeConfig || {};
+      setWelcomeConfig({
+        eventName: themeConfig.visitorWelcomeEventName || res.data.name || "",
+        eventGuide: themeConfig.visitorWelcomeEventGuide || themeConfig.welcomePdfLink || "",
+        emergencyContact: themeConfig.visitorWelcomeEmergencyContact || themeConfig.emergencyContact || "",
+      });
+    } catch (err) {
+      console.error("Failed to load event:", err);
+    }
+  };
+  
+  const handleSaveWelcomeConfig = async () => {
+    if (!eventId) return;
+    setSavingWelcomeConfig(true);
+    try {
+      const currentEvent = await api.get(`/admin/event/${eventId}`);
+      const currentThemeConfig = currentEvent.data.themeConfig || {};
+      
+      await api.put(`/admin/event/${eventId}`, {
+        themeConfig: {
+          ...currentThemeConfig,
+          visitorWelcomeEventName: welcomeConfig.eventName,
+          visitorWelcomeEventGuide: welcomeConfig.eventGuide,
+          visitorWelcomeEmergencyContact: welcomeConfig.emergencyContact,
+        },
+      });
+      
+      alert("Visitor Welcome configuration saved successfully!");
+      loadEvent();
+    } catch (err: any) {
+      console.error("Failed to save welcome config:", err);
+      alert(err.response?.data?.error || "Failed to save configuration");
+    } finally {
+      setSavingWelcomeConfig(false);
+    }
+  };
 
   const loadTemplates = async () => {
     if (!eventId) return;
@@ -225,6 +276,63 @@ export default function NotificationsConsole() {
                 </div>
               </div>
             )}
+          </div>
+        </SectionCard>
+
+        <SectionCard>
+          <h2 className="text-heading text-textDark mb-4">Configure Visitor Welcome Message</h2>
+          <p className="text-body text-textLight mb-4">
+            Configure the variables for the <code className="text-sm bg-creamDark px-2 py-1 rounded">visitor_welcome</code> template that is sent automatically after visitor registration.
+          </p>
+          
+          <div className="space-y-4">
+            <Field label="Event Name ({{2}})" required hint="The event name to display in the welcome message">
+              <Input
+                value={welcomeConfig.eventName}
+                onChange={(v) => setWelcomeConfig({ ...welcomeConfig, eventName: v })}
+                placeholder={event?.name || "Enter event name"}
+              />
+            </Field>
+            <Field label="Event Guide URL ({{3}})" required hint="URL to the event guide PDF or document">
+              <Input
+                value={welcomeConfig.eventGuide}
+                onChange={(v) => setWelcomeConfig({ ...welcomeConfig, eventGuide: v })}
+                placeholder="https://example.com/event-guide.pdf"
+              />
+            </Field>
+            <Field label="Emergency Contact ({{4}})" required hint="Emergency contact number in international format (e.g., +9779863832800)">
+              <Input
+                value={welcomeConfig.emergencyContact}
+                onChange={(v) => setWelcomeConfig({ ...welcomeConfig, emergencyContact: v })}
+                placeholder="+9779863832800"
+              />
+            </Field>
+            <PrimaryButton 
+              onClick={handleSaveWelcomeConfig} 
+              disabled={savingWelcomeConfig || !welcomeConfig.eventName || !welcomeConfig.eventGuide || !welcomeConfig.emergencyContact}
+            >
+              {savingWelcomeConfig ? "Saving..." : "💾 Save Welcome Message Configuration"}
+            </PrimaryButton>
+            <div className="text-sm text-textLight bg-creamDark p-3 rounded-lg">
+              <strong>Note:</strong> The welcome message template format is:<br/>
+              <code className="text-xs mt-2 block whitespace-pre-wrap">
+{`Welcome {{1}}! 
+
+Thank you for registering for {{2}}.
+
+Event Guide: {{3}}
+
+Emergency Contact: {{4}}
+
+ See you soon!`}
+              </code>
+              <div className="mt-2 text-xs">
+                • {'{{1}}'} = Visitor name (automatically filled)<br/>
+                • {'{{2}}'} = Event name (configured above)<br/>
+                • {'{{3}}'} = Event guide URL (configured above)<br/>
+                • {'{{4}}'} = Emergency contact (configured above)
+              </div>
+            </div>
           </div>
         </SectionCard>
 
