@@ -651,6 +651,93 @@ async function searchShopifyProductsAdmin(query: string, limit: number = 20): Pr
 }
 
 /**
+ * Fetch variant prices in INR from Shopify Storefront API
+ */
+export async function fetchVariantPricesInINR(variantIds: string[]): Promise<Record<string, number>> {
+  const storefrontConfig = getShopifyStorefrontConfig();
+  const { SHOPIFY_STOREFRONT_ACCESS_TOKEN, SHOPIFY_STOREFRONT_ENDPOINT } = storefrontConfig;
+  
+  if (!SHOPIFY_STOREFRONT_ACCESS_TOKEN || variantIds.length === 0) {
+    return {};
+  }
+
+  try {
+    // Convert numeric IDs to GID format if needed
+    const normalizedIds = variantIds.map((id) => {
+      if (/^\d+$/.test(id)) {
+        return `gid://shopify/ProductVariant/${id}`;
+      }
+      if (!id.startsWith("gid://")) {
+        const match = id.match(/(\d+)$/);
+        if (match) {
+          return `gid://shopify/ProductVariant/${match[1]}`;
+        }
+      }
+      return id;
+    });
+
+    // Fetch prices for all variants in one query
+    const query = `
+      query GetVariantPricesInINR($ids: [ID!]!) @inContext(country: IN) {
+        nodes(ids: $ids) {
+          ... on ProductVariant {
+            id
+            price {
+              amount
+              currencyCode
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = { ids: normalizedIds };
+    
+    const response = await fetch(SHOPIFY_STOREFRONT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      console.error("Shopify Storefront API error fetching variant prices:", response.statusText);
+      return {};
+    }
+
+    const data = await response.json();
+
+    if (data.errors) {
+      console.error("Shopify GraphQL errors fetching variant prices:", JSON.stringify(data.errors, null, 2));
+      return {};
+    }
+
+    const prices: Record<string, number> = {};
+    const nodes = data.data?.nodes || [];
+    
+    nodes.forEach((node: any) => {
+      if (node && node.price) {
+        // Extract numeric ID from GID for lookup
+        const match = node.id.match(/(\d+)$/);
+        if (match) {
+          const numericId = match[1];
+          prices[numericId] = parseFloat(node.price.amount || "0");
+          // Also store with GID format
+          prices[node.id] = parseFloat(node.price.amount || "0");
+        }
+      }
+    });
+
+    return prices;
+  } catch (error) {
+    console.error("Error fetching variant prices:", error);
+    return {};
+  }
+}
+
+/**
  * Get draft order by ID
  */
 export async function getShopifyDraftOrder(draftOrderId: string): Promise<ShopifyDraftOrder | null> {

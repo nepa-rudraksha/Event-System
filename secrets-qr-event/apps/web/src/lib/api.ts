@@ -347,5 +347,13 @@ export async function sendWhatsAppNotification(consultationId: string, payload: 
   return data;
 }
 
+// Fetch variant prices in INR from Shopify
+export async function fetchVariantPrices(variantIds: string[]) {
+  const { data } = await api.post<{ prices: Record<string, number } }>("/shopify/variants/prices", {
+    variantIds,
+  });
+  return data.prices;
+}
+
 export { api };
 export default api;

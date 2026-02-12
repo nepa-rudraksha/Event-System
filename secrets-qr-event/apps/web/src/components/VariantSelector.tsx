@@ -3,8 +3,8 @@ import { useState, useMemo } from "react";
 type Variant = {
   id: string;
   title: string;
-  price: { amount: string; currencyCode: string };
-  quantityAvailable: number;
+  price: { amount: string; currencyCode: string } | string; // Can be object or string
+  quantityAvailable?: number;
 };
 
 type VariantSelectorProps = {
@@ -74,7 +74,14 @@ export default function VariantSelector({
   }, [selectedSize, selectedVariantId, onSelect, variants]);
 
   const currentVariant = selectedSize ? getBaseVariantForSize(selectedSize) : null;
-  const basePrice = currentVariant ? parseFloat(currentVariant.price.amount) : 0;
+  // Handle both price formats: object with amount or string
+  const getPriceAmount = (price: { amount: string; currencyCode: string } | string): number => {
+    if (typeof price === "string") {
+      return parseFloat(price) || 0;
+    }
+    return parseFloat(price?.amount || "0");
+  };
+  const basePrice = currentVariant ? getPriceAmount(currentVariant.price) : 0;
 
   if (sizes.length === 0) {
     // Fallback to simple dropdown
@@ -86,11 +93,14 @@ export default function VariantSelector({
           onChange={(e) => onSelect(e.target.value)}
           className="w-full rounded-lg border-2 border-creamDark bg-white px-3 py-2 text-sm text-textDark outline-none focus:border-gold"
         >
-          {variants.map((variant) => (
-            <option key={variant.id} value={variant.id}>
-              {variant.title} - ${parseFloat(variant.price.amount).toLocaleString()}
-            </option>
-          ))}
+          {variants.map((variant) => {
+            const price = typeof variant.price === "string" ? parseFloat(variant.price) : parseFloat(variant.price?.amount || "0");
+            return (
+              <option key={variant.id} value={variant.id}>
+                {variant.title} - ₹{price.toLocaleString()}
+              </option>
+            );
+          })}
         </select>
         <div className="flex items-center gap-2">
           <label className="text-sm font-semibold text-textDark">Qty:</label>
@@ -145,7 +155,7 @@ export default function VariantSelector({
             <div className="text-right">
               <div className="text-xs text-textLight">Price:</div>
               <div className="text-sm font-semibold text-gold">
-                ${basePrice.toLocaleString()} × {quantity} = ${(basePrice * quantity).toLocaleString(undefined, {
+                ₹{basePrice.toLocaleString()} × {quantity} = ₹{(basePrice * quantity).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}

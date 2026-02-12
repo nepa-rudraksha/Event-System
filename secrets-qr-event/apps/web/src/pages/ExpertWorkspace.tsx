@@ -93,6 +93,42 @@ export default function ExpertWorkspace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  
+  // Accessory/Pooja prices in INR (fetched from Shopify)
+  const [accessoryPoojaPrices, setAccessoryPoojaPrices] = useState<Record<string, number>>({});
+
+  // Fetch accessory/pooja prices in INR on component mount
+  useEffect(() => {
+    const fetchAccessoryPoojaPrices = async () => {
+      const allVariantIds = [
+        ...ACCESSORIES.map(a => a.variantId),
+        ...POOJAS.map(p => p.variantId),
+      ];
+      
+      if (allVariantIds.length > 0) {
+        try {
+          const { fetchVariantPrices } = await import("../lib/api");
+          const prices = await fetchVariantPrices(allVariantIds);
+          setAccessoryPoojaPrices(prices || {});
+        } catch (err) {
+          console.error("Failed to fetch accessory/pooja prices:", err);
+          // Set fallback prices (these should be updated to INR values)
+          const fallbackPrices: Record<string, number> = {
+            "47409161699570": 5, // Silver Capping
+            "47409161666802": 150, // Rudraksha Chain
+            "47409161404658": 90, // Silver Chain in Mala
+            "47409161371890": 60, // Silver Chain in Rudraksha
+            "42114197815538": 299, // Rudraksha Prana Pratishtha Pooja
+            "48656302047474": 599, // Trividha Prana Pratishtha Pooja
+            "48656302801138": 1200, // Dwadasha Maha Prana Pratishtha Pooja
+          };
+          setAccessoryPoojaPrices(fallbackPrices);
+        }
+      }
+    };
+    
+    fetchAccessoryPoojaPrices();
+  }, []);
 
   useEffect(() => {
     if (!consultationId) return;
@@ -473,7 +509,7 @@ export default function ExpertWorkspace() {
           quantity: 1,
           priority: 1,
           reason: pooja.name,
-          notes: `Pooja/Energization - ₹${pooja.cost}`,
+          notes: `Pooja/Energization - ₹${accessoryPoojaPrices[pooja.variantId] || accessoryPoojaPrices[`gid://shopify/ProductVariant/${pooja.variantId}`] || 0}`,
           mappedShopifyVariantId: pooja.variantId,
           isPooja: true,
         },
@@ -542,17 +578,18 @@ export default function ExpertWorkspace() {
 
   // Calculate total amount including accessories and poojas
   const calculateTotalAmount = (): number => {
+    // Use fetched prices from Shopify, fallback to stored prices
     const ACCESSORIES_COSTS: Record<string, number> = {
-      "47409161699570": 5, // Silver Capping
-      "47409161666802": 150, // Rudraksha Chain
-      "47409161404658": 90, // Silver Chain in Mala
-      "47409161371890": 60, // Silver Chain in Rudraksha
+      "47409161699570": accessoryPoojaPrices["47409161699570"] || accessoryPoojaPrices["gid://shopify/ProductVariant/47409161699570"] || 5,
+      "47409161666802": accessoryPoojaPrices["47409161666802"] || accessoryPoojaPrices["gid://shopify/ProductVariant/47409161666802"] || 150,
+      "47409161404658": accessoryPoojaPrices["47409161404658"] || accessoryPoojaPrices["gid://shopify/ProductVariant/47409161404658"] || 90,
+      "47409161371890": accessoryPoojaPrices["47409161371890"] || accessoryPoojaPrices["gid://shopify/ProductVariant/47409161371890"] || 60,
     };
 
     const POOJAS_COSTS: Record<string, number> = {
-      "42114197815538": 299, // Rudraksha Prana Pratishtha Pooja
-      "48656302047474": 599, // Trividha Prana Pratishtha Pooja
-      "48656302801138": 1200, // Dwadasha Maha Prana Pratishtha Pooja
+      "42114197815538": accessoryPoojaPrices["42114197815538"] || accessoryPoojaPrices["gid://shopify/ProductVariant/42114197815538"] || 299,
+      "48656302047474": accessoryPoojaPrices["48656302047474"] || accessoryPoojaPrices["gid://shopify/ProductVariant/48656302047474"] || 599,
+      "48656302801138": accessoryPoojaPrices["48656302801138"] || accessoryPoojaPrices["gid://shopify/ProductVariant/48656302801138"] || 1200,
     };
 
     return items.reduce((total, item) => {
@@ -564,7 +601,10 @@ export default function ExpertWorkspace() {
           (v: any) => v.id === item.selectedVariantId
         );
         if (variant) {
-          const price = parseFloat(variant.price?.amount || "0");
+          // Handle both price formats: object with amount or string
+          const price = typeof variant.price === "string" 
+            ? parseFloat(variant.price) || 0
+            : parseFloat(variant.price?.amount || "0");
           itemTotal += price * (item.quantity || 1);
         }
       }
@@ -1420,10 +1460,12 @@ export default function ExpertWorkspace() {
                       className="w-16 rounded-lg border-2 border-creamDark bg-white px-2 py-1 text-sm text-textDark outline-none focus:border-gold"
                     />
                     <span className="text-xs text-textMedium">
-                      ${item.isAccessory 
-                        ? ACCESSORIES.find(a => a.variantId === item.mappedShopifyVariantId)?.cost || 0
-                        : POOJAS.find(p => p.variantId === item.mappedShopifyVariantId)?.cost || 0
-                      } each
+                      ₹{(() => {
+                        const variantId = item.mappedShopifyVariantId || "";
+                        const numericId = /^\d+$/.test(variantId) ? variantId : variantId.match(/(\d+)$/)?.[1] || variantId;
+                        const price = accessoryPoojaPrices[numericId] || accessoryPoojaPrices[variantId] || 0;
+                        return price;
+                      })()} each
                     </span>
                   </div>
                 )}
@@ -1486,10 +1528,12 @@ export default function ExpertWorkspace() {
                       className="w-16 rounded-lg border-2 border-creamDark bg-white px-2 py-1 text-sm text-textDark outline-none focus:border-gold"
                     />
                     <span className="text-xs text-textMedium">
-                      ${item.isAccessory 
-                        ? ACCESSORIES.find(a => a.variantId === item.mappedShopifyVariantId)?.cost || 0
-                        : POOJAS.find(p => p.variantId === item.mappedShopifyVariantId)?.cost || 0
-                      } each
+                      ₹{(() => {
+                        const variantId = item.mappedShopifyVariantId || "";
+                        const numericId = /^\d+$/.test(variantId) ? variantId : variantId.match(/(\d+)$/)?.[1] || variantId;
+                        const price = accessoryPoojaPrices[numericId] || accessoryPoojaPrices[variantId] || 0;
+                        return price;
+                      })()} each
                     </span>
                   </div>
 

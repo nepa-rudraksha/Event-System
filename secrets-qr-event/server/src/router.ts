@@ -9,7 +9,7 @@ import { createOtp, peekOtp, verifyOtp } from "./lib/otpStore.js";
 import { broadcastEvent } from "./realtime/socket.js";
 import { requireAuth, requireRole, signToken } from "./lib/auth.js";
 import { geocodePlace } from "./lib/geocode.js";
-import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct, searchShopifyProducts } from "./shopify.js";
+import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct, searchShopifyProducts, fetchVariantPricesInINR } from "./shopify.js";
 
 const phoneSchema = z.string().min(6).max(20);
 const emailSchema = z.string().email();
