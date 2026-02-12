@@ -242,7 +242,7 @@ model RecommendationItem {
   quantity       Int @default(1) // Quantity of this product
   priority       Int
   reason         String
-  notes          String?
+  notes          String? @db.Text // TEXT type for long notes
 
   createdAt      DateTime @default(now())
 

@@ -697,6 +697,28 @@ export function createRouter(io?: Server) {
     })
   );
 
+  // Fetch variant prices in INR
+  router.post(
+    "/shopify/variants/prices",
+    requireAuth,
+    requireRole(["EXPERT", "ADMIN", "SALES"]),
+    asyncHandler(async (req, res) => {
+      const body = z
+        .object({
+          variantIds: z.array(z.string()),
+        })
+        .parse(req.body);
+
+      try {
+        const prices = await fetchVariantPricesInINR(body.variantIds);
+        res.json({ prices });
+      } catch (error: any) {
+        console.error("Error fetching variant prices:", error);
+        res.status(500).json({ error: "Failed to fetch variant prices" });
+      }
+    })
+  );
+
   router.get(
     "/visitors/:visitorId/summary",
     asyncHandler(async (req, res) => {
