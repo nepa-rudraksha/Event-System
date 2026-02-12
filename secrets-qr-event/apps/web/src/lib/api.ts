@@ -12,9 +12,18 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  // Only add admin token if Authorization header is not already set
-  // This allows visitor tokens to be used without being overridden
-  if (!config.headers.Authorization) {
+  // Check if Authorization header is already set (case-insensitive check)
+  const hasAuthHeader = config.headers.Authorization || 
+                       config.headers.authorization ||
+                       (config.headers as any)['Authorization'] ||
+                       (config.headers as any)['authorization'];
+  
+  // Don't add admin token if Authorization is already set or if it's a visitor/auth endpoint
+  const isVisitorEndpoint = config.url?.includes("/auth/verify-visitor") || 
+                           config.url?.includes("/visitors/first-login") ||
+                           (config.url?.includes("/events/") && !config.url?.includes("/admin/"));
+  
+  if (!hasAuthHeader && !isVisitorEndpoint) {
     const raw = localStorage.getItem("nr_admin_session");
     if (raw) {
       try {

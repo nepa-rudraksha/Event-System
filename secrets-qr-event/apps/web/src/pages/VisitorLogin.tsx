@@ -56,13 +56,23 @@ export default function VisitorLogin() {
     
     try {
       // Verify token and get visitor info
-      const response = await api.get("/auth/verify-visitor", {
+      // Create a new axios instance or use a direct fetch to avoid interceptor issues
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "/api"}/auth/verify-visitor`, {
+        method: "GET",
         headers: {
-          Authorization: `Bearer ${cleanToken}`,
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cleanToken}`,
         },
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to verify visitor");
+      }
+      
+      const data = await response.json();
 
-      const { visitor, event } = response.data;
+      const { visitor, event } = data;
 
       // Set session
       setSession({
@@ -82,10 +92,13 @@ export default function VisitorLogin() {
 
       // Send welcome message on first login (only once)
       try {
-        await api.post("/visitors/first-login", {}, {
+        await fetch(`${import.meta.env.VITE_API_URL || "/api"}/visitors/first-login`, {
+          method: "POST",
           headers: {
-            Authorization: `Bearer ${cleanToken}`,
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${cleanToken}`,
           },
+          body: JSON.stringify({}),
         });
       } catch (err) {
         // Silently fail - welcome message is optional
@@ -96,7 +109,8 @@ export default function VisitorLogin() {
       navigate(`/e/${event.slug}/dashboard`);
     } catch (err: any) {
       console.error("Login error:", err);
-      setError(err.response?.data?.error || "Invalid or expired login link");
+      const errorMessage = err.message || err.response?.data?.error || "Invalid or expired login link";
+      setError(errorMessage);
     } finally {
       setLoading(false);
       isLoggingInRef.current = false;
