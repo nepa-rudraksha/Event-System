@@ -53,31 +53,35 @@ export default function ExhibitDetail() {
         }
         
         // Fetch product handle if shopifyProductId exists and we haven't fetched it yet
-        if (found?.shopifyProductId && fetchedHandleRef.current !== found.shopifyProductId) {
-          fetchedHandleRef.current = found.shopifyProductId;
-          setProductHandle(null); // Reset handle for new product
-          setLoadingHandle(true);
-          
-          api.get(`/shopify/product/${encodeURIComponent(found.shopifyProductId)}/handle`)
-            .then((response) => {
-              if (!cancelled) {
-                setProductHandle(response.data.handle);
-              }
-            })
-            .catch((err) => {
-              if (!cancelled) {
-                console.error("Failed to fetch product handle:", err);
-              }
-            })
-            .finally(() => {
-              if (!cancelled) {
-                setLoadingHandle(false);
-              }
-            });
-        } else if (!found?.shopifyProductId) {
+        if (found?.shopifyProductId) {
+          if (fetchedHandleRef.current !== found.shopifyProductId) {
+            fetchedHandleRef.current = found.shopifyProductId;
+            setProductHandle(null); // Reset handle for new product
+            setLoadingHandle(true);
+            
+            api.get(`/shopify/product/${encodeURIComponent(found.shopifyProductId)}/handle`)
+              .then((response) => {
+                if (!cancelled && response.data?.handle) {
+                  setProductHandle(response.data.handle);
+                }
+              })
+              .catch((err) => {
+                if (!cancelled) {
+                  console.error("Failed to fetch product handle:", err);
+                  // Don't set loading to false immediately - allow retry on button click
+                }
+              })
+              .finally(() => {
+                if (!cancelled) {
+                  setLoadingHandle(false);
+                }
+              });
+          }
+        } else {
           // Reset if product doesn't have shopifyProductId
           fetchedHandleRef.current = null;
           setProductHandle(null);
+          setLoadingHandle(false);
         }
       })
       .catch(() => {
@@ -281,8 +285,8 @@ export default function ExhibitDetail() {
             <PrimaryButton
               onClick={() => {
                 if (productHandle) {
-                  // Use custom domain if available, otherwise use myshopify.com
-                  const shopifyDomain = 'neparudraksha.com'; // Custom domain
+                  // Use the correct domain
+                  const shopifyDomain = 'nepalirudraksha.com';
                   window.open(`https://${shopifyDomain}/products/${productHandle}`, '_blank');
                 } else if (!loadingHandle) {
                   // If handle not loaded yet, try to fetch it
@@ -291,7 +295,7 @@ export default function ExhibitDetail() {
                     .then((response) => {
                       const handle = response.data.handle;
                       setProductHandle(handle);
-                      const shopifyDomain = 'neparudraksha.com'; // Custom domain
+                      const shopifyDomain = 'nepalirudraksha.com';
                       window.open(`https://${shopifyDomain}/products/${handle}`, '_blank');
                     })
                     .catch((err) => {
