@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 type RichTextEditorProps = {
   value: string;
@@ -8,7 +8,15 @@ type RichTextEditorProps = {
 
 export function RichTextEditor({ value, onChange, placeholder = "Enter content..." }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [showToolbar, setShowToolbar] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize content on mount
+  useEffect(() => {
+    if (editorRef.current && !isInitialized && value) {
+      editorRef.current.innerHTML = value;
+      setIsInitialized(true);
+    }
+  }, [value, isInitialized]);
 
   const execCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value);
@@ -112,10 +120,16 @@ export function RichTextEditor({ value, onChange, placeholder = "Enter content..
         contentEditable
         onInput={updateContent}
         onBlur={updateContent}
+        onFocus={() => {
+          if (!isInitialized && editorRef.current && value) {
+            editorRef.current.innerHTML = value;
+            setIsInitialized(true);
+          }
+        }}
         className="w-full min-h-[200px] rounded-xl border-2 border-creamDark bg-white px-4 py-3 text-base text-textDark outline-none focus:border-gold"
         style={{ whiteSpace: "pre-wrap" }}
-        dangerouslySetInnerHTML={{ __html: value || "" }}
         data-placeholder={placeholder}
+        suppressContentEditableWarning
       />
       <style>{`
         [contenteditable][data-placeholder]:empty:before {
