@@ -2508,7 +2508,7 @@ export function createRouter(io?: Server) {
       });
 
       // Generate login link
-      const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const baseUrl = process.env.WEB_ORIGIN || "http://localhost:5173";
       const loginLink = `${baseUrl}/e/${event.slug}/login?token=${loginToken}`;
 
       // Generate QR code as data URL
@@ -2734,7 +2734,7 @@ export function createRouter(io?: Server) {
       });
 
       // Generate login link
-      const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const baseUrl = process.env.WEB_ORIGIN || "http://localhost:5173";
       const loginLink = `${baseUrl}/e/${event.slug}/login?token=${loginToken}`;
 
       // Generate QR code as data URL
