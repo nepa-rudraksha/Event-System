@@ -294,7 +294,7 @@ export async function createShopifyDraftOrder(
 /**
  * Fetch product from Shopify by product ID
  */
-export async function fetchShopifyProduct(productId: string): Promise<{ description: string; title: string } | null> {
+export async function fetchShopifyProduct(productId: string): Promise<{ description: string; title: string; handle: string } | null> {
   const config = getShopifyConfig();
   const { SHOPIFY_STORE, SHOPIFY_ACCESS_TOKEN, SHOPIFY_GRAPHQL_ENDPOINT, SHOPIFY_API_URL } = config;
   
@@ -325,6 +325,7 @@ export async function fetchShopifyProduct(productId: string): Promise<{ descript
           id
           title
           description
+          handle
         }
       }
     `;
@@ -367,6 +368,7 @@ export async function fetchShopifyProduct(productId: string): Promise<{ descript
     return {
       description: product.description || "",
       title: product.title || "",
+      handle: product.handle || "",
     };
   } catch (error) {
     console.error("Error fetching Shopify product:", error);

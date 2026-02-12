@@ -9,7 +9,7 @@ import {
   SectionCard,
 } from "../components/ui";
 import { RudrakshaIcon, MessageIcon, StarIcon, ClockIcon } from "../components/Icons";
-import { fetchExhibits } from "../lib/api";
+import { fetchExhibits, api } from "../lib/api";
 import { getSession } from "../lib/session";
 import type { ExhibitItem } from "../lib/types";
 
@@ -24,6 +24,8 @@ export default function ExhibitDetail() {
   );
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [productHandle, setProductHandle] = useState<string | null>(null);
+  const [loadingHandle, setLoadingHandle] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -36,17 +38,33 @@ export default function ExhibitDetail() {
         setItem(found);
         setCurrentImageIndex(0); // Reset image index when item changes
         setIsImageLoading(false);
+        setProductHandle(null); // Reset handle
         // Set view mode to 3D if available, otherwise photo
         if (found?.model3dUrl) {
           setViewMode("3d");
         } else {
           setViewMode("photo");
         }
+        // Fetch product handle if shopifyProductId exists
+        if (found?.shopifyProductId) {
+          setLoadingHandle(true);
+          api.get(`/shopify/product/${encodeURIComponent(found.shopifyProductId)}/handle`)
+            .then((response) => {
+              setProductHandle(response.data.handle);
+            })
+            .catch((err) => {
+              console.error("Failed to fetch product handle:", err);
+            })
+            .finally(() => {
+              setLoadingHandle(false);
+            });
+        }
       })
       .catch(() => {
         setItem(null);
         setCurrentImageIndex(0);
         setIsImageLoading(false);
+        setProductHandle(null);
       });
   }, [id, navigate, session, slug, type]);
 
@@ -235,15 +253,34 @@ export default function ExhibitDetail() {
           {item.shopifyProductId && (
             <PrimaryButton
               onClick={() => {
-                // Extract numeric ID from GID format or use as-is
-                const productId = item.shopifyProductId?.replace(/^gid:\/\/shopify\/Product\//, '') || item.shopifyProductId;
-                const shopifyStore = 'nepalirudrakshalive'; // Default store
-                window.open(`https://${shopifyStore}.myshopify.com/products/${productId}`, '_blank');
+                if (productHandle) {
+                  // Use custom domain if available, otherwise use myshopify.com
+                  const shopifyDomain = 'neparudraksha.com'; // Custom domain
+                  window.open(`https://${shopifyDomain}/products/${productHandle}`, '_blank');
+                } else if (!loadingHandle) {
+                  // If handle not loaded yet, try to fetch it
+                  setLoadingHandle(true);
+                  api.get(`/shopify/product/${encodeURIComponent(item.shopifyProductId)}/handle`)
+                    .then((response) => {
+                      const handle = response.data.handle;
+                      setProductHandle(handle);
+                      const shopifyDomain = 'neparudraksha.com'; // Custom domain
+                      window.open(`https://${shopifyDomain}/products/${handle}`, '_blank');
+                    })
+                    .catch((err) => {
+                      console.error("Failed to fetch product handle:", err);
+                      alert("Unable to open product page. Please try again.");
+                    })
+                    .finally(() => {
+                      setLoadingHandle(false);
+                    });
+                }
               }}
-              className="bg-green-600 hover:bg-green-700"
+              disabled={loadingHandle}
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
             >
               <div className="flex items-center justify-center gap-2">
-                <span>Visit Website</span>
+                <span>{loadingHandle ? "Loading..." : "Visit Website"}</span>
               </div>
             </PrimaryButton>
           )}

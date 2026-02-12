@@ -676,7 +676,8 @@ export default function ExpertWorkspace() {
       ];
       
       if (templateKey === "token_booked" && consultation?.token) {
-        params.push({ type: "text" as const, text: `#${consultation.token.tokenNo}` });
+        // Token number should be just the number, not with "#" prefix
+        params.push({ type: "text" as const, text: String(consultation.token.tokenNo) });
       }
       
       const result = await sendWhatsAppNotification(consultationId, {

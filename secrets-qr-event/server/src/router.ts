@@ -633,6 +633,25 @@ export function createRouter(io?: Server) {
     })
   );
 
+  // Get Shopify product handle by product ID
+  router.get(
+    "/shopify/product/:productId/handle",
+    asyncHandler(async (req, res) => {
+      const { productId } = req.params;
+      try {
+        const product = await fetchShopifyProduct(productId);
+        if (product && product.handle) {
+          res.json({ handle: product.handle });
+        } else {
+          res.status(404).json({ error: "Product not found or handle not available" });
+        }
+      } catch (error: any) {
+        console.error("Error fetching product handle:", error);
+        res.status(500).json({ error: "Failed to fetch product handle" });
+      }
+    })
+  );
+
   router.get(
     "/visitors/:visitorId/summary",
     asyncHandler(async (req, res) => {
@@ -1050,13 +1069,24 @@ export function createRouter(io?: Server) {
         return;
       }
 
-      const parameters = body.parameters || [
-        { type: "text" as const, text: consultation.visitor.name },
-      ];
-
-      // Add token number for token_booked template
-      if (body.templateKey === "token_booked" && consultation.token) {
-        parameters.push({ type: "text" as const, text: String(consultation.token.tokenNo) });
+      // Construct parameters based on template
+      let parameters: Array<{ type: "text"; text: string }>;
+      
+      if (body.parameters) {
+        // Use provided parameters as-is (don't modify them)
+        parameters = body.parameters;
+      } else if (body.templateKey === "token_booked" && consultation.token) {
+        // For token_booked, construct parameters: [name, tokenNumber]
+        // Token number should be just the number, not with "#" prefix
+        parameters = [
+          { type: "text" as const, text: consultation.visitor.name },
+          { type: "text" as const, text: String(consultation.token.tokenNo) }, // Just the number, no "#"
+        ];
+      } else {
+        // Default: just visitor name
+        parameters = [
+          { type: "text" as const, text: consultation.visitor.name },
+        ];
       }
 
       const result = await sendWhatsAppNotification(
