@@ -759,6 +759,19 @@ export function createRouter(io?: Server) {
       const { eventId } = req.params;
       const body = z.object({ visitorId: z.string() }).parse(req.body);
 
+      // Verify visitor exists and belongs to this event
+      const visitor = await prisma.visitor.findFirst({
+        where: {
+          id: body.visitorId,
+          eventId: eventId,
+        },
+      });
+
+      if (!visitor) {
+        res.status(404).json({ error: "Visitor not found or does not belong to this event" });
+        return;
+      }
+
       const lastToken = await prisma.token.findFirst({
         where: { eventId },
         orderBy: { tokenNo: "desc" },
@@ -1548,6 +1561,17 @@ export function createRouter(io?: Server) {
         return;
       }
 
+      // Create announcement record in database
+      const announcement = await prisma.announcement.create({
+        data: {
+          eventId: event.id,
+          title: body.title,
+          message: body.message,
+          priority: 1,
+          isActive: true,
+        },
+      });
+
       // Get all visitors with WhatsApp consent (now compulsory, so all visitors)
       const visitors = await prisma.visitor.findMany({
         where: { eventId },
@@ -1555,7 +1579,7 @@ export function createRouter(io?: Server) {
       });
 
       if (visitors.length === 0) {
-        res.json({ sent: 0, total: 0, batches: 0, message: "No visitors found" });
+        res.json({ sent: 0, total: 0, batches: 0, message: "No visitors found", announcementId: announcement.id });
         return;
       }
 
@@ -1655,6 +1679,7 @@ export function createRouter(io?: Server) {
         failed: totalFailed,
         total: visitors.length,
         batches: batches.length,
+        announcementId: announcement.id,
         message: `Announcement sent to ${totalSent} visitors in ${batches.length} batch(es)`,
       });
     })

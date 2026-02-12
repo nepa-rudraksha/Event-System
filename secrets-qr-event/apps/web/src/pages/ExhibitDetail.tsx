@@ -225,19 +225,28 @@ export default function ExhibitDetail() {
           </div>
         </SectionCard>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <PrimaryButton onClick={() => navigate(`/e/${slug}/consultation`)}>
             <div className="flex items-center justify-center gap-2">
               <MessageIcon size={18} />
               <span>Ask Expert</span>
             </div>
           </PrimaryButton>
-          <GhostButton>
-            <div className="flex items-center justify-center gap-2">
-              <StarIcon size={18} />
-              <span>Save</span>
-            </div>
-          </GhostButton>
+          {item.shopifyProductId && (
+            <PrimaryButton
+              onClick={() => {
+                // Extract numeric ID from GID format or use as-is
+                const productId = item.shopifyProductId?.replace(/^gid:\/\/shopify\/Product\//, '') || item.shopifyProductId;
+                const shopifyStore = 'nepalirudrakshalive'; // Default store
+                window.open(`https://${shopifyStore}.myshopify.com/products/${productId}`, '_blank');
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span>Visit Website</span>
+              </div>
+            </PrimaryButton>
+          )}
         </div>
       </div>
     </AppShell>

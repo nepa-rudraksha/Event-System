@@ -61,10 +61,6 @@ export default function Itinerary() {
                 {item.description && (
                   <p className="text-body text-textMedium leading-relaxed">{item.description}</p>
                 )}
-                <button className="flex items-center gap-2 mt-4 text-base font-semibold text-gold hover:underline">
-                  <ClockIcon size={18} />
-                  <span>Set Reminder</span>
-                </button>
               </div>
             )}
           </SectionCard>
