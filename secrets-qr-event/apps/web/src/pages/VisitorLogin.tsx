@@ -48,6 +48,18 @@ export default function VisitorLogin() {
         otp: "ADMIN_CREATED", // Special flag for admin-created visitors
       });
 
+      // Send welcome message on first login (only once)
+      try {
+        await api.post("/visitors/first-login", {}, {
+          headers: {
+            Authorization: `Bearer ${loginToken}`,
+          },
+        });
+      } catch (err) {
+        // Silently fail - welcome message is optional
+        console.log("Welcome message already sent or failed");
+      }
+
       // Redirect to dashboard
       navigate(`/e/${event.slug}/dashboard`);
     } catch (err: any) {

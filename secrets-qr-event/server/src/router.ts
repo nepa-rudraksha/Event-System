@@ -316,6 +316,68 @@ export function createRouter(io?: Server) {
     })
   );
 
+  // Send welcome message on first login (only once)
+  router.post(
+    "/visitors/first-login",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as Request & { user?: AuthUser }).user;
+      if (!user || user.role !== "VISITOR") {
+        res.status(403).json({ error: "Visitor access required" });
+        return;
+      }
+
+      const visitor = await prisma.visitor.findUnique({
+        where: { id: user.id },
+        include: { event: true },
+      });
+
+      if (!visitor) {
+        res.status(404).json({ error: "Visitor not found" });
+        return;
+      }
+
+      // Check if welcome message was already sent
+      const welcomeAlreadySent = await prisma.notificationLog.findFirst({
+        where: {
+          visitorId: visitor.id,
+          templateKey: "visitor_welcome",
+          status: "sent",
+        },
+      });
+
+      if (welcomeAlreadySent) {
+        res.json({ success: true, message: "Welcome message already sent" });
+        return;
+      }
+
+      // Send welcome message with PDF and emergency contact
+      const eventConfig = visitor.event.themeConfig as any;
+      const pdfLink = eventConfig?.welcomePdfLink || process.env.DEFAULT_WELCOME_PDF_LINK || "";
+      const emergencyContact = eventConfig?.emergencyContact || process.env.DEFAULT_EMERGENCY_CONTACT || "+9779863832800";
+      
+      const welcomeSent = await sendWhatsAppNotification(
+        visitor.eventId,
+        "visitor_welcome",
+        visitor,
+        [
+          { type: "text", text: visitor.name },
+          { type: "text", text: visitor.event.name },
+          { type: "text", text: pdfLink },
+          { type: "text", text: emergencyContact },
+        ]
+      ).catch(err => {
+        console.error("Welcome message send error:", err);
+        return { success: false };
+      });
+
+      res.json({
+        success: welcomeSent.success || false,
+        message: welcomeSent.success ? "Welcome message sent" : "Failed to send welcome message",
+      });
+    })
+  );
+
   // Verify OTP for admin-created visitors (special endpoint)
   router.post(
     "/events/:slug/visitors/verify-otp",
@@ -425,22 +487,8 @@ export function createRouter(io?: Server) {
         },
       });
 
-      // Send welcome message with PDF and emergency contact
-      const eventConfig = event.themeConfig as any;
-      const pdfLink = eventConfig?.welcomePdfLink || process.env.DEFAULT_WELCOME_PDF_LINK || "";
-      const emergencyContact = eventConfig?.emergencyContact || process.env.DEFAULT_EMERGENCY_CONTACT || "+9779863832800";
-      
-      await sendWhatsAppNotification(
-        event.id,
-        "visitor_welcome",
-        visitor,
-        [
-          { type: "text", text: visitor.name },
-          { type: "text", text: event.name },
-          { type: "text", text: pdfLink },
-          { type: "text", text: emergencyContact },
-        ]
-      ).catch(err => console.error("Welcome message send error:", err));
+      // Note: visitor_welcome is now sent on first login, not during registration
+      // See /visitors/first-login endpoint
 
       res.json({ visitor, event });
     })
@@ -1521,7 +1569,7 @@ export function createRouter(io?: Server) {
         const whatsappPayload = {
           channelId: process.env.WHATSAPP_CHANNEL_ID || "6971f3a7cb205bd2e61ce326",
           template: {
-            name: "announcement",
+            name: "event_information_update",
             language: "en",
             components: [
               {
@@ -1557,7 +1605,7 @@ export function createRouter(io?: Server) {
             await prisma.notificationLog.create({
               data: {
                 visitorId: visitor.id,
-                templateKey: "announcement",
+                templateKey: "event_information_update",
                 channel: "whatsapp",
                 status: whatsappResponse.ok ? "sent" : "failed",
                 payload: whatsappPayload,
@@ -1577,7 +1625,7 @@ export function createRouter(io?: Server) {
             await prisma.notificationLog.create({
               data: {
                 visitorId: visitor.id,
-                templateKey: "announcement",
+                templateKey: "event_information_update",
                 channel: "whatsapp",
                 status: "failed",
                 payload: whatsappPayload,
@@ -2727,31 +2775,14 @@ export function createRouter(io?: Server) {
         }
       }
 
-      // Send welcome message with PDF and emergency contact (WhatsApp is compulsory)
-      const eventConfig = event.themeConfig as any;
-      const pdfLink = eventConfig?.welcomePdfLink || process.env.DEFAULT_WELCOME_PDF_LINK || "";
-      const emergencyContact = eventConfig?.emergencyContact || process.env.DEFAULT_EMERGENCY_CONTACT || "+9779863832800";
-      
-      const welcomeSent = await sendWhatsAppNotification(
-        event.id,
-        "visitor_welcome",
-        visitor,
-        [
-          { type: "text", text: visitor.name },
-          { type: "text", text: event.name },
-          { type: "text", text: pdfLink },
-          { type: "text", text: emergencyContact },
-        ]
-      ).catch(err => {
-        console.error("Welcome message send error:", err);
-        return { success: false };
-      });
+      // Note: visitor_welcome is now sent on first login, not during visitor creation
+      // See /visitors/first-login endpoint
 
       res.json({
         visitor,
         loginLink,
         qrCodeDataUrl,
-        whatsappSent: welcomeSent.success || false,
+        whatsappSent: false, // Welcome message sent separately on first login
       });
     })
   );

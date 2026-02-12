@@ -30,7 +30,7 @@ This code is valid for 10 minutes.
 
 ## 2. Welcome Message (`visitor_welcome`)
 
-**Purpose**: Welcome message after successful registration with PDF and emergency contact
+**Purpose**: Welcome message with PDF and emergency contact sent after visitor logs in for the first time
 
 **Template Format**:
 ```
@@ -50,21 +50,21 @@ Thank you for registering for {{2}}.
 - `{{3}}`: PDF download link/URL
 - `{{4}}`: Emergency contact number
 
-**Usage**: Sent automatically after visitor registration is completed
+**Usage**: Sent automatically on first login only (via `/api/visitors/first-login` endpoint). The system checks if the message was already sent to avoid duplicates.
 
 ---
 
-## 3. Announcement (`announcement`)
+## 3. Event Information Update (`event_information_update`)
 
-**Purpose**: Send announcements to all visitors (admin-triggered)
+**Purpose**: Send announcements/updates to all visitors (admin-triggered)
 
 **Template Format**:
 ```
-📢 Announcement: {{1}}
+Event Information Update: {{1}}
 
 {{2}}
 
-Thank you for your attention.
+This is an important update regarding your event participation.
 ```
 
 **Parameters**:
