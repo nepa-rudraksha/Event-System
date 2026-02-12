@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AppBar,
@@ -26,47 +26,74 @@ export default function ExhibitDetail() {
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [productHandle, setProductHandle] = useState<string | null>(null);
   const [loadingHandle, setLoadingHandle] = useState(false);
+  const fetchedHandleRef = useRef<string | null>(null); // Track which product ID we've fetched handle for
 
   useEffect(() => {
     if (!session) {
       navigate(`/e/${slug}`);
       return;
     }
+    
+    let cancelled = false;
+    
     fetchExhibits(session.eventId, type)
       .then((items) => {
+        if (cancelled) return;
+        
         const found = items.find((exhibit) => exhibit.id === id) ?? null;
         setItem(found);
         setCurrentImageIndex(0); // Reset image index when item changes
         setIsImageLoading(false);
-        setProductHandle(null); // Reset handle
+        
         // Set view mode to 3D if available, otherwise photo
         if (found?.model3dUrl) {
           setViewMode("3d");
         } else {
           setViewMode("photo");
         }
-        // Fetch product handle if shopifyProductId exists
-        if (found?.shopifyProductId) {
+        
+        // Fetch product handle if shopifyProductId exists and we haven't fetched it yet
+        if (found?.shopifyProductId && fetchedHandleRef.current !== found.shopifyProductId) {
+          fetchedHandleRef.current = found.shopifyProductId;
+          setProductHandle(null); // Reset handle for new product
           setLoadingHandle(true);
+          
           api.get(`/shopify/product/${encodeURIComponent(found.shopifyProductId)}/handle`)
             .then((response) => {
-              setProductHandle(response.data.handle);
+              if (!cancelled) {
+                setProductHandle(response.data.handle);
+              }
             })
             .catch((err) => {
-              console.error("Failed to fetch product handle:", err);
+              if (!cancelled) {
+                console.error("Failed to fetch product handle:", err);
+              }
             })
             .finally(() => {
-              setLoadingHandle(false);
+              if (!cancelled) {
+                setLoadingHandle(false);
+              }
             });
+        } else if (!found?.shopifyProductId) {
+          // Reset if product doesn't have shopifyProductId
+          fetchedHandleRef.current = null;
+          setProductHandle(null);
         }
       })
       .catch(() => {
-        setItem(null);
-        setCurrentImageIndex(0);
-        setIsImageLoading(false);
-        setProductHandle(null);
+        if (!cancelled) {
+          setItem(null);
+          setCurrentImageIndex(0);
+          setIsImageLoading(false);
+          setProductHandle(null);
+          fetchedHandleRef.current = null;
+        }
       });
-  }, [id, navigate, session, slug, type]);
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [id, session?.eventId, slug, type]); // Use session.eventId instead of session object
 
   if (!item) {
     return (
