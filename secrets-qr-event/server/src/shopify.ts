@@ -424,7 +424,7 @@ export async function searchShopifyProducts(query: string, limit: number = 20): 
 
   try {
     const searchQuery = `
-      query SearchProducts($query: String!, $first: Int!) {
+      query SearchProducts($query: String!, $first: Int!, $countryCode: CountryCode!, $currencyCode: CurrencyCode!) {
         products(first: $first, query: $query) {
           edges {
             node {
@@ -447,6 +447,10 @@ export async function searchShopifyProducts(query: string, limit: number = 20): 
                     title
                     price
                     availableForSale
+                    priceV2(currency: $currencyCode) {
+                      amount
+                      currencyCode
+                    }
                   }
                 }
               }
@@ -459,6 +463,8 @@ export async function searchShopifyProducts(query: string, limit: number = 20): 
     const variables = {
       query: `title:*${query}* OR description:*${query}*`,
       first: limit,
+      countryCode: "IN", // India
+      currencyCode: "INR",
     };
 
     const graphqlUrl = SHOPIFY_GRAPHQL_ENDPOINT || `${SHOPIFY_API_URL}/graphql.json`;
@@ -497,7 +503,7 @@ export async function searchShopifyProducts(query: string, limit: number = 20): 
       variants: edge.node.variants.edges.map((v: any) => ({
         id: v.node.id,
         title: v.node.title,
-        price: v.node.price,
+        price: v.node.priceV2?.amount || v.node.price,
         availableForSale: v.node.availableForSale,
       })),
     }));

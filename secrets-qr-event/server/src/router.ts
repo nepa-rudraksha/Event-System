@@ -1285,6 +1285,7 @@ export function createRouter(io?: Server) {
           latitude: String(lat),
           longitude: String(lng),
           timezone: timezone,
+          user_currency: "INR",
         }),
       });
 

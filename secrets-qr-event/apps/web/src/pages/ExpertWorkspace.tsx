@@ -329,6 +329,43 @@ export default function ExpertWorkspace() {
     setCategorizedProducts(categorized);
   };
 
+  const handleSearchProducts = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    try {
+      const products = await searchShopifyProducts(searchQuery.trim(), 20);
+      setSearchResults(products);
+    } catch (err: any) {
+      console.error("Error searching products:", err);
+      alert(err.response?.data?.error || "Failed to search products");
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const addProductFromSearch = (product: any, variant: any) => {
+    setItems((prev) => [
+      ...prev,
+      {
+        productDetails: {
+          ...product,
+          variants: product.variants,
+        },
+        selectedVariantId: variant.id,
+        mappedShopifyVariantId: variant.id,
+        checkoutLink: `https://nepalirudraksha.com/products/${product.handle}?variant=${variant.id}`,
+        quantity: 1,
+        priority: 1,
+        reason: product.title,
+        notes: product.description || "",
+      },
+    ]);
+    setShowProductSearch(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
   const addProductToRecommendations = (catProduct: CategorizedProduct) => {
     const product = catProduct.product;
     const reason = catProduct.mala
