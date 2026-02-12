@@ -1,6 +1,6 @@
-# Deployment Guide for Digital Ocean
+# Deployment Guide for Digital Ocean (PM2)
 
-This guide will help you deploy both the backend and frontend to a Digital Ocean server.
+This guide will help you deploy both the backend and frontend to a Digital Ocean server using PM2.
 
 ## Prerequisites
 
@@ -29,26 +29,7 @@ node --version
 npm --version
 ```
 
-### 2. Install Docker (Option 1: Docker Deployment)
-
-```bash
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# Install Docker Compose
-sudo apt install -y docker-compose-plugin
-
-# Add your user to docker group (optional, to run without sudo)
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Verify installation
-docker --version
-docker compose version
-```
-
-### 3. Install PM2 (Option 2: PM2 Deployment)
+### 2. Install PM2
 
 ```bash
 # Install PM2 globally
@@ -59,7 +40,7 @@ pm2 startup systemd
 # Follow the instructions shown
 ```
 
-### 4. Install Nginx (For PM2 deployment or custom setup)
+### 3. Install Nginx
 
 ```bash
 sudo apt install -y nginx
@@ -69,7 +50,7 @@ sudo systemctl start nginx
 sudo systemctl enable nginx
 ```
 
-### 5. Install MySQL (If not using Docker)
+### 4. Install MySQL
 
 ```bash
 sudo apt install -y mysql-server
@@ -89,39 +70,33 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-## Deployment Methods
+## Deployment Steps
 
-### Method 1: Docker Deployment (Recommended)
-
-#### Step 1: Clone Repository
+### Step 1: Clone Repository
 
 ```bash
 cd /var/www
 sudo git clone <your-repo-url> event-system
-cd event-system
+cd event-system/secrets-qr-event
+sudo chown -R $USER:$USER /var/www/event-system
 ```
 
-#### Step 2: Configure Environment Variables
+### Step 2: Configure Environment Variables
 
 ```bash
-# Copy and edit environment file
-cp server/.env.example server/.env
+# Create environment file
 nano server/.env
 ```
 
 Required environment variables:
 ```env
-# Database
-DATABASE_URL=mysql://event_user:password@mysql:3306/event_db
-MYSQL_ROOT_PASSWORD=your_root_password
-MYSQL_DATABASE=event_db
-MYSQL_USER=event_user
-MYSQL_PASSWORD=your_password
+# Database (use localhost for PM2)
+DATABASE_URL=mysql://event_user:password@localhost:3306/event_db
 
 # Server
 PORT=8080
 NODE_ENV=production
-WEB_ORIGIN=https://yourdomain.com
+WEB_ORIGIN=https://event.nepalirudraksha.com
 
 # JWT
 JWT_SECRET=your_very_secure_jwt_secret_key
@@ -131,17 +106,46 @@ WHATSAPP_API_TOKEN=your_whatsapp_token
 WHATSAPP_CHANNEL_ID=your_channel_id
 ```
 
-#### Step 3: Deploy
+**Important:** Use `localhost` in `DATABASE_URL` (not `mysql`).
+
+### Step 3: Deploy
 
 ```bash
 # Make deploy script executable
 chmod +x deploy.sh
 
-# Deploy with Docker
-./deploy.sh docker
+# Deploy with PM2
+./deploy.sh
 ```
 
-#### Step 4: Configure Firewall
+This will:
+- Build the frontend
+- Install backend dependencies
+- Generate Prisma client
+- Run database migrations
+- Start backend with PM2
+
+### Step 4: Configure Nginx
+
+```bash
+# Copy nginx configuration
+sudo cp nginx.conf /etc/nginx/sites-available/event-system
+
+# Edit the configuration (optional, to verify paths)
+sudo nano /etc/nginx/sites-available/event-system
+
+# Create symlink
+sudo ln -s /etc/nginx/sites-available/event-system /etc/nginx/sites-enabled/
+
+# Remove default site (optional)
+sudo rm /etc/nginx/sites-enabled/default
+
+# Test and reload Nginx
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Step 5: Configure Firewall
 
 ```bash
 # Allow HTTP, HTTPS, and SSH
@@ -151,80 +155,6 @@ sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-### Method 2: PM2 Deployment
-
-#### Step 1: Clone and Setup
-
-```bash
-cd /var/www
-sudo git clone <your-repo-url> event-system
-cd event-system
-sudo chown -R $USER:$USER /var/www/event-system
-```
-
-#### Step 2: Configure Environment Variables
-
-```bash
-cp server/.env.example server/.env
-nano server/.env
-```
-
-Update `DATABASE_URL` to use `localhost` instead of `mysql`:
-```env
-DATABASE_URL=mysql://event_user:password@localhost:3306/event_db
-```
-
-#### Step 3: Build Frontend
-
-```bash
-cd apps/web
-npm ci
-npm run build
-cd ../..
-```
-
-#### Step 4: Setup Backend
-
-```bash
-cd server
-npm ci
-npx prisma generate
-npx prisma migrate deploy
-cd ..
-```
-
-#### Step 5: Deploy with PM2
-
-```bash
-chmod +x deploy.sh
-./deploy.sh pm2
-```
-
-#### Step 6: Configure Nginx
-
-```bash
-# Copy nginx configuration
-sudo cp nginx.conf /etc/nginx/sites-available/event-system
-
-# Edit the configuration
-sudo nano /etc/nginx/sites-available/event-system
-# Update server_name with your domain
-
-# Create symlink
-sudo ln -s /etc/nginx/sites-available/event-system /etc/nginx/sites-enabled/
-
-# Remove default site (optional)
-sudo rm /etc/nginx/sites-enabled/default
-
-# Copy frontend build to web root
-sudo mkdir -p /var/www/event-system/dist
-sudo cp -r apps/web/dist/* /var/www/event-system/dist/
-
-# Test and reload Nginx
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
 ## SSL Certificate (Let's Encrypt)
 
 ```bash
@@ -232,27 +162,17 @@ sudo systemctl reload nginx
 sudo apt install -y certbot python3-certbot-nginx
 
 # Get certificate (replace with your domain)
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+sudo certbot --nginx -d event.nepalirudraksha.com
 
 # Auto-renewal is set up automatically
 ```
 
 ## Updating the Application
 
-### Docker Method
-
 ```bash
-cd /var/www/event-system
-git pull
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-```
+cd /var/www/event-system/secrets-qr-event
 
-### PM2 Method
-
-```bash
-cd /var/www/event-system
+# Pull latest code
 git pull
 
 # Rebuild frontend
@@ -270,28 +190,9 @@ cd ..
 
 # Restart PM2
 pm2 restart event-backend
-
-# Update frontend files
-sudo cp -r apps/web/dist/* /var/www/event-system/dist/
 ```
 
 ## Monitoring and Logs
-
-### Docker
-
-```bash
-# View logs
-docker-compose logs -f
-
-# View specific service logs
-docker-compose logs -f backend
-docker-compose logs -f frontend
-
-# Check container status
-docker-compose ps
-```
-
-### PM2
 
 ```bash
 # View logs
@@ -305,21 +206,12 @@ pm2 status
 
 # Restart
 pm2 restart event-backend
+
+# View last 100 lines
+pm2 logs event-backend --lines 100
 ```
 
 ## Database Backups
-
-### Docker
-
-```bash
-# Create backup
-docker-compose exec mysql mysqldump -u event_user -p event_db > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# Restore backup
-docker-compose exec -T mysql mysql -u event_user -p event_db < backup_file.sql
-```
-
-### PM2
 
 ```bash
 # Create backup
@@ -333,16 +225,17 @@ mysql -u event_user -p event_db < backup_file.sql
 
 ### Backend not starting
 
-1. Check logs: `docker-compose logs backend` or `pm2 logs event-backend`
+1. Check logs: `pm2 logs event-backend`
 2. Verify environment variables in `server/.env`
-3. Check database connection
+3. Check database connection: `mysql -u event_user -p event_db`
 4. Verify Prisma migrations: `npx prisma migrate status`
 
 ### Frontend not loading
 
 1. Check Nginx logs: `sudo tail -f /var/log/nginx/error.log`
 2. Verify Nginx configuration: `sudo nginx -t`
-3. Check file permissions: `sudo chown -R www-data:www-data /var/www/event-system/dist`
+3. Check file permissions: `sudo chown -R www-data:www-data /var/www/event-system/secrets-qr-event/apps/web/dist`
+4. Verify dist folder exists: `ls -la apps/web/dist`
 
 ### Database connection issues
 
@@ -383,7 +276,7 @@ sudo kill -9 <PID>
 ## Support
 
 For issues or questions:
-- Check application logs
-- Review Nginx error logs
-- Verify environment variables
-- Test database connectivity
+- Check application logs: `pm2 logs event-backend`
+- Review Nginx error logs: `sudo tail -f /var/log/nginx/error.log`
+- Verify environment variables: `cat server/.env`
+- Test database connectivity: `mysql -u event_user -p event_db`

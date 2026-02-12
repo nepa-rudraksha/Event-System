@@ -46,7 +46,7 @@ WEB_ORIGIN=http://event.nepalirudraksha.com
 
 ```bash
 chmod +x deploy.sh
-./deploy.sh docker
+./deploy.sh
 ```
 
 ### 5. Setup SSL Certificate (HTTPS)
@@ -56,55 +56,36 @@ After DNS is working and the site is accessible via HTTP:
 ```bash
 # Install Certbot
 sudo apt update
-sudo apt install -y certbot
-
-# Stop any nginx running on host (Docker nginx will handle it)
-sudo systemctl stop nginx 2>/dev/null || true
+sudo apt install -y certbot python3-certbot-nginx
 
 # Get certificate (replace email with yours)
-sudo certbot certonly --standalone -d event.nepalirudraksha.com --non-interactive --agree-tos --email your-email@example.com
-
-# Copy certificates to project
-mkdir -p nginx-ssl
-sudo cp /etc/letsencrypt/live/event.nepalirudraksha.com/fullchain.pem nginx-ssl/
-sudo cp /etc/letsencrypt/live/event.nepalirudraksha.com/privkey.pem nginx-ssl/
-sudo chmod 644 nginx-ssl/fullchain.pem
-sudo chmod 600 nginx-ssl/privkey.pem
+sudo certbot --nginx -d event.nepalirudraksha.com --non-interactive --agree-tos --email your-email@example.com
 ```
 
-### 6. Update Frontend Container with SSL
+Certbot will automatically configure Nginx with SSL.
 
-Create a custom nginx config with SSL:
+### 6. Update Environment for HTTPS
 
 ```bash
-# Copy the SSL nginx config
-cp nginx-ssl.conf nginx-ssl/nginx.conf
-
-# Rebuild frontend container
-docker-compose build frontend
-docker-compose up -d frontend
+nano server/.env
 ```
 
-Or manually update the nginx config inside the container:
+Make sure `WEB_ORIGIN` is:
+```env
+WEB_ORIGIN=https://event.nepalirudraksha.com
+```
 
+Then restart backend:
 ```bash
-# Copy SSL config into container
-docker cp nginx-ssl.conf event-frontend:/etc/nginx/conf.d/default.conf
-
-# Restart container
-docker-compose restart frontend
+pm2 restart event-backend
 ```
 
 ### 7. Setup Auto-Renewal for SSL
 
-```bash
-# Add to crontab
-sudo crontab -e
-```
+Certbot sets this up automatically, but verify:
 
-Add this line:
-```
-0 3 * * * certbot renew --quiet && docker cp /etc/letsencrypt/live/event.nepalirudraksha.com/fullchain.pem event-frontend:/etc/nginx/ssl/fullchain.pem && docker cp /etc/letsencrypt/live/event.nepalirudraksha.com/privkey.pem event-frontend:/etc/nginx/ssl/privkey.pem && docker-compose restart frontend
+```bash
+sudo certbot renew --dry-run
 ```
 
 ## Quick Commands Reference
@@ -116,15 +97,16 @@ nslookup event.nepalirudraksha.com
 # Check if site is accessible
 curl -I http://event.nepalirudraksha.com
 
-# View container logs
-docker-compose logs -f frontend
+# View PM2 logs
+pm2 logs event-backend
 
 # Restart services
-docker-compose restart
+pm2 restart event-backend
+sudo systemctl reload nginx
 
 # Update environment and restart
 nano server/.env
-docker-compose restart backend
+pm2 restart event-backend
 ```
 
 ## Troubleshooting
@@ -137,7 +119,8 @@ docker-compose restart backend
 ### Can't access site?
 - Check firewall: `sudo ufw status`
 - Allow ports: `sudo ufw allow 80/tcp && sudo ufw allow 443/tcp`
-- Check if containers are running: `docker-compose ps`
+- Check if PM2 is running: `pm2 status`
+- Check if Nginx is running: `sudo systemctl status nginx`
 
 ### SSL certificate issues?
 - Make sure DNS is working first
@@ -146,4 +129,4 @@ docker-compose restart backend
 
 ### CORS errors?
 - Make sure `WEB_ORIGIN` in `server/.env` matches your domain exactly
-- Restart backend: `docker-compose restart backend`
+- Restart backend: `pm2 restart event-backend`

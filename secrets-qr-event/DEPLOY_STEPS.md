@@ -1,4 +1,4 @@
-# Complete Deployment Steps for event.nepalirudraksha.com
+# Complete Deployment Steps for event.nepalirudraksha.com (PM2)
 
 ## Server IP: 157.245.103.21
 
@@ -17,12 +17,8 @@ nano server/.env
 Paste this (replace the placeholder values):
 
 ```env
-# Database Configuration
-DATABASE_URL=mysql://event_user:ChangeThisPassword123!@mysql:3306/event_db
-MYSQL_ROOT_PASSWORD=ChangeThisRootPassword123!
-MYSQL_DATABASE=event_db
-MYSQL_USER=event_user
-MYSQL_PASSWORD=ChangeThisPassword123!
+# Database Configuration (use localhost for PM2)
+DATABASE_URL=mysql://event_user:ChangeThisPassword123!@localhost:3306/event_db
 
 # Server Configuration
 PORT=8080
@@ -37,7 +33,7 @@ WHATSAPP_API_TOKEN=your_whatsapp_api_token_here
 WHATSAPP_CHANNEL_ID=your_whatsapp_channel_id_here
 ```
 
-**To generate JWT_SECRET, run this in another terminal:**
+**To generate JWT_SECRET, run this:**
 ```bash
 openssl rand -base64 32
 ```
@@ -60,41 +56,63 @@ Copy the output and update `JWT_SECRET` in `server/.env`
 chmod +x deploy.sh
 ```
 
-### Step 5: Deploy with Docker
+### Step 5: Deploy with PM2
 
 ```bash
-./deploy.sh docker
+./deploy.sh
 ```
 
-This will take a few minutes. You'll see logs from all services.
+This will take a few minutes. You'll see logs from the deployment process.
 
 **If you see errors, check:**
 ```bash
-docker-compose logs
+pm2 logs event-backend
 ```
 
 ### Step 6: Check if Services are Running
 
 ```bash
-docker-compose ps
+# Check PM2 status
+pm2 status
+
+# Check backend health
+curl http://localhost:8080/api/health
 ```
 
-You should see 3 containers:
-- `event-mysql` (running)
-- `event-backend` (running)
-- `event-frontend` (running)
+You should see:
+- `event-backend` running in PM2
+- Health check returns `{"ok":true}`
 
-### Step 7: Test the Application
+### Step 7: Setup Nginx
+
+```bash
+# Copy nginx configuration
+sudo cp nginx.conf /etc/nginx/sites-available/event-system
+
+# Create symlink
+sudo ln -s /etc/nginx/sites-available/event-system /etc/nginx/sites-enabled/
+
+# Remove default site (optional)
+sudo rm /etc/nginx/sites-enabled/default
+
+# Test nginx configuration
+sudo nginx -t
+
+# Reload nginx
+sudo systemctl reload nginx
+```
+
+### Step 8: Test the Application
 
 ```bash
 # Test backend health
-curl http://localhost/api/health
+curl http://localhost:8080/api/health
 
 # Test frontend
 curl http://localhost
 ```
 
-### Step 8: Configure Firewall (if not already done)
+### Step 9: Configure Firewall (if not already done)
 
 ```bash
 sudo ufw allow 80/tcp
@@ -103,7 +121,7 @@ sudo ufw allow 22/tcp
 sudo ufw status
 ```
 
-### Step 9: Configure DNS
+### Step 10: Configure DNS
 
 Go to your domain registrar (where you manage `nepalirudraksha.com`) and add:
 
@@ -122,7 +140,7 @@ nslookup event.nepalirudraksha.com
 dig event.nepalirudraksha.com
 ```
 
-### Step 10: Test HTTP Access
+### Step 11: Test HTTP Access
 
 Once DNS is working, test:
 
@@ -132,40 +150,20 @@ curl -I http://event.nepalirudraksha.com
 
 Or open in browser: `http://event.nepalirudraksha.com`
 
-### Step 11: Setup SSL Certificate (HTTPS)
+### Step 12: Setup SSL Certificate (HTTPS)
 
 **Only do this after DNS is working and HTTP is accessible:**
 
 ```bash
 # Install Certbot
 sudo apt update
-sudo apt install -y certbot
-
-# Stop any nginx on host (Docker handles nginx)
-sudo systemctl stop nginx 2>/dev/null || true
+sudo apt install -y certbot python3-certbot-nginx
 
 # Get SSL certificate (replace email with your email)
-sudo certbot certonly --standalone -d event.nepalirudraksha.com --non-interactive --agree-tos --email admin@nepalirudraksha.com
-
-# Create directory for SSL certificates
-mkdir -p nginx-ssl
-
-# Copy certificates
-sudo cp /etc/letsencrypt/live/event.nepalirudraksha.com/fullchain.pem nginx-ssl/
-sudo cp /etc/letsencrypt/live/event.nepalirudraksha.com/privkey.pem nginx-ssl/
-sudo chmod 644 nginx-ssl/fullchain.pem
-sudo chmod 600 nginx-ssl/privkey.pem
+sudo certbot --nginx -d event.nepalirudraksha.com --non-interactive --agree-tos --email admin@nepalirudraksha.com
 ```
 
-### Step 12: Update Frontend Container with SSL
-
-```bash
-# Copy SSL nginx config into container
-docker cp nginx-ssl.conf event-frontend:/etc/nginx/conf.d/default.conf
-
-# Restart frontend container
-docker-compose restart frontend
-```
+Certbot will automatically configure Nginx with SSL.
 
 ### Step 13: Update Environment for HTTPS
 
@@ -180,7 +178,7 @@ WEB_ORIGIN=https://event.nepalirudraksha.com
 
 Then restart backend:
 ```bash
-docker-compose restart backend
+pm2 restart event-backend
 ```
 
 ### Step 14: Test HTTPS
@@ -193,48 +191,41 @@ Or open in browser: `https://event.nepalirudraksha.com`
 
 ### Step 15: Setup Auto-Renewal for SSL
 
+Certbot sets this up automatically, but verify:
+
 ```bash
-sudo crontab -e
+sudo certbot renew --dry-run
 ```
-
-Add this line at the end:
-```
-0 3 * * * certbot renew --quiet && docker cp /etc/letsencrypt/live/event.nepalirudraksha.com/fullchain.pem event-frontend:/etc/nginx/ssl/fullchain.pem && docker cp /etc/letsencrypt/live/event.nepalirudraksha.com/privkey.pem event-frontend:/etc/nginx/ssl/privkey.pem && docker-compose restart frontend
-```
-
-Save and exit: `Ctrl+X`, then `Y`, then `Enter`
 
 ## Troubleshooting Commands
 
 ```bash
-# View all logs
-docker-compose logs -f
+# View PM2 logs
+pm2 logs event-backend
+pm2 logs event-backend --lines 100
 
-# View specific service logs
-docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f mysql
+# Check PM2 status
+pm2 status
 
-# Restart all services
-docker-compose restart
+# Restart backend
+pm2 restart event-backend
 
-# Restart specific service
-docker-compose restart backend
-docker-compose restart frontend
+# Monitor resources
+pm2 monit
 
-# Stop everything
-docker-compose down
+# View Nginx logs
+sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/log/nginx/access.log
 
-# Rebuild and restart
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
+# Test Nginx configuration
+sudo nginx -t
 
-# Check container status
-docker-compose ps
+# Reload Nginx
+sudo systemctl reload nginx
 
 # Check if ports are listening
 sudo netstat -tlnp | grep :80
+sudo netstat -tlnp | grep :8080
 sudo netstat -tlnp | grep :443
 ```
 
@@ -244,17 +235,17 @@ sudo netstat -tlnp | grep :443
 - [ ] Step 2: Created `server/.env` with all required variables
 - [ ] Step 3: Generated and set JWT_SECRET
 - [ ] Step 4: Made deploy.sh executable
-- [ ] Step 5: Ran `./deploy.sh docker`
-- [ ] Step 6: Verified all 3 containers are running
-- [ ] Step 7: Tested localhost access
-- [ ] Step 8: Configured firewall
-- [ ] Step 9: Added DNS A record for event.nepalirudraksha.com
-- [ ] Step 10: Tested HTTP access via domain
-- [ ] Step 11: Obtained SSL certificate
-- [ ] Step 12: Updated frontend container with SSL config
+- [ ] Step 5: Ran `./deploy.sh`
+- [ ] Step 6: Verified PM2 is running and backend is healthy
+- [ ] Step 7: Configured Nginx
+- [ ] Step 8: Tested localhost access
+- [ ] Step 9: Configured firewall
+- [ ] Step 10: Added DNS A record for event.nepalirudraksha.com
+- [ ] Step 11: Tested HTTP access via domain
+- [ ] Step 12: Obtained SSL certificate
 - [ ] Step 13: Updated WEB_ORIGIN to HTTPS
 - [ ] Step 14: Tested HTTPS access
-- [ ] Step 15: Setup SSL auto-renewal
+- [ ] Step 15: Verified SSL auto-renewal
 
 ## Important Notes
 
@@ -268,11 +259,13 @@ sudo netstat -tlnp | grep :443
 
 5. **WhatsApp Credentials**: Make sure to add your actual WhatsApp API token and channel ID.
 
+6. **Database URL**: Use `localhost` (not `mysql`) in `DATABASE_URL` for PM2 deployment.
+
 ## If Something Goes Wrong
 
 1. **Check logs first:**
    ```bash
-   docker-compose logs -f
+   pm2 logs event-backend
    ```
 
 2. **Verify environment variables:**
@@ -280,19 +273,23 @@ sudo netstat -tlnp | grep :443
    cat server/.env
    ```
 
-3. **Check if containers are running:**
+3. **Check if PM2 is running:**
    ```bash
-   docker-compose ps
+   pm2 status
    ```
 
-4. **Restart everything:**
+4. **Check if Nginx is running:**
    ```bash
-   docker-compose restart
+   sudo systemctl status nginx
    ```
 
-5. **If still not working, rebuild:**
+5. **Restart services:**
    ```bash
-   docker-compose down
-   docker-compose build --no-cache
-   docker-compose up -d
+   pm2 restart event-backend
+   sudo systemctl reload nginx
+   ```
+
+6. **If still not working, check database:**
+   ```bash
+   mysql -u event_user -p event_db
    ```
