@@ -292,6 +292,89 @@ export async function createShopifyDraftOrder(
 }
 
 /**
+ * Fetch product from Shopify by product ID
+ */
+export async function fetchShopifyProduct(productId: string): Promise<{ description: string; title: string } | null> {
+  const config = getShopifyConfig();
+  const { SHOPIFY_STORE, SHOPIFY_ACCESS_TOKEN, SHOPIFY_GRAPHQL_ENDPOINT, SHOPIFY_API_URL } = config;
+  
+  if (!SHOPIFY_STORE || !SHOPIFY_ACCESS_TOKEN) {
+    console.warn("Shopify credentials not configured");
+    return null;
+  }
+
+  try {
+    // Normalize product ID - handle both GID format and numeric ID
+    let normalizedProductId = productId.trim();
+    if (!normalizedProductId.startsWith("gid://")) {
+      // If it's just a number, convert to GID format
+      if (/^\d+$/.test(normalizedProductId)) {
+        normalizedProductId = `gid://shopify/Product/${normalizedProductId}`;
+      } else {
+        // Try to extract from partial GID
+        const match = normalizedProductId.match(/(\d+)$/);
+        if (match) {
+          normalizedProductId = `gid://shopify/Product/${match[1]}`;
+        }
+      }
+    }
+
+    const query = `
+      query GetProduct($id: ID!) {
+        product(id: $id) {
+          id
+          title
+          description
+        }
+      }
+    `;
+
+    const variables = { id: normalizedProductId };
+
+    const graphqlUrl = SHOPIFY_GRAPHQL_ENDPOINT || `${SHOPIFY_API_URL}/graphql.json`;
+    
+    const response = await fetch(graphqlUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Shopify API error fetching product:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (data.errors) {
+      console.error("Shopify GraphQL errors fetching product:", JSON.stringify(data.errors, null, 2));
+      return null;
+    }
+
+    const product = data.data?.product;
+    if (!product) {
+      return null;
+    }
+
+    return {
+      description: product.description || "",
+      title: product.title || "",
+    };
+  } catch (error) {
+    console.error("Error fetching Shopify product:", error);
+    return null;
+  }
+}
+
+/**
  * Get draft order by ID
  */
 export async function getShopifyDraftOrder(draftOrderId: string): Promise<ShopifyDraftOrder | null> {

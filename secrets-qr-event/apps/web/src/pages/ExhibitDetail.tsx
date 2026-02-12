@@ -23,6 +23,7 @@ export default function ExhibitDetail() {
     item?.model3dUrl ? "3d" : "photo"
   );
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isImageLoading, setIsImageLoading] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -34,6 +35,7 @@ export default function ExhibitDetail() {
         const found = items.find((exhibit) => exhibit.id === id) ?? null;
         setItem(found);
         setCurrentImageIndex(0); // Reset image index when item changes
+        setIsImageLoading(false);
         // Set view mode to 3D if available, otherwise photo
         if (found?.model3dUrl) {
           setViewMode("3d");
@@ -44,6 +46,7 @@ export default function ExhibitDetail() {
       .catch(() => {
         setItem(null);
         setCurrentImageIndex(0);
+        setIsImageLoading(false);
       });
   }, [id, navigate, session, slug, type]);
 
@@ -78,27 +81,48 @@ export default function ExhibitDetail() {
             />
           ) : viewMode === "photo" && itemImages.length > 0 ? (
             <>
-              <img
-                src={itemImages[currentImageIndex]}
-                alt={item.name}
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                  const fallback = (e.target as HTMLImageElement).parentElement?.querySelector(".fallback-icon");
-                  if (fallback) (fallback as HTMLElement).style.display = "flex";
-                }}
-              />
+              <div className="relative w-full h-full">
+                {isImageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-cream">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gold"></div>
+                  </div>
+                )}
+                <img
+                  key={itemImages[currentImageIndex]} // Force re-render on image change
+                  src={itemImages[currentImageIndex]}
+                  alt={item.name}
+                  className={`w-full h-full object-contain transition-opacity duration-300 ${
+                    isImageLoading ? "opacity-0" : "opacity-100"
+                  }`}
+                  onLoad={() => setIsImageLoading(false)}
+                  onLoadStart={() => setIsImageLoading(true)}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    setIsImageLoading(false);
+                    const fallback = (e.target as HTMLImageElement).parentElement?.querySelector(".fallback-icon");
+                    if (fallback) (fallback as HTMLElement).style.display = "flex";
+                  }}
+                />
+              </div>
               {itemImages.length > 1 && (
                 <>
                   <button
-                    onClick={() => setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : itemImages.length - 1))}
-                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white px-3 py-2 rounded-lg text-gold font-semibold z-10"
+                    onClick={() => {
+                      setIsImageLoading(true);
+                      setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : itemImages.length - 1));
+                    }}
+                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white px-4 py-3 rounded-lg text-gold font-semibold z-10 shadow-lg transition-all hover:scale-110"
+                    aria-label="Previous image"
                   >
                     ‹
                   </button>
                   <button
-                    onClick={() => setCurrentImageIndex((prev) => (prev < itemImages.length - 1 ? prev + 1 : 0))}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white px-3 py-2 rounded-lg text-gold font-semibold z-10"
+                    onClick={() => {
+                      setIsImageLoading(true);
+                      setCurrentImageIndex((prev) => (prev < itemImages.length - 1 ? prev + 1 : 0));
+                    }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white px-4 py-3 rounded-lg text-gold font-semibold z-10 shadow-lg transition-all hover:scale-110"
+                    aria-label="Next image"
                   >
                     ›
                   </button>
@@ -143,14 +167,18 @@ export default function ExhibitDetail() {
           )}
           {/* Image gallery dots if multiple images */}
           {viewMode === "photo" && itemImages.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
               {itemImages.map((_, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setCurrentImageIndex(idx)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    idx === currentImageIndex ? "bg-gold w-6" : "bg-white/60"
+                  onClick={() => {
+                    setIsImageLoading(true);
+                    setCurrentImageIndex(idx);
+                  }}
+                  className={`h-2 rounded-full transition-all ${
+                    idx === currentImageIndex ? "bg-gold w-6" : "bg-white/60 w-2"
                   }`}
+                  aria-label={`Go to image ${idx + 1}`}
                 />
               ))}
             </div>
@@ -175,27 +203,11 @@ export default function ExhibitDetail() {
               </div>
             )}
 
-            {item.benefits && (
+            {item.description && (
               <div className="pt-4 border-t border-creamDark">
-                <h3 className="text-heading text-textDark mb-3">Benefits</h3>
-                <ul className="space-y-2 text-body text-textMedium">
-                  {item.benefits.map((benefit, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <span className="text-gold text-xl">•</span>
-                      <span>{benefit}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {item.beejMantra && (
-              <div className="pt-4 border-t border-creamDark">
-                <h3 className="text-heading text-textDark mb-3">Beej Mantra</h3>
-                <div className="rounded-xl border-2 border-gold bg-gold/5 p-4 text-center">
-                  <p className="text-large text-gold font-medium leading-relaxed">
-                    {item.beejMantra}
-                  </p>
+                <h3 className="text-heading text-textDark mb-3">Description</h3>
+                <div className="text-body text-textMedium whitespace-pre-line leading-relaxed">
+                  {item.description}
                 </div>
               </div>
             )}

@@ -9,7 +9,7 @@ import { createOtp, peekOtp, verifyOtp } from "./lib/otpStore.js";
 import { broadcastEvent } from "./realtime/socket.js";
 import { requireAuth, requireRole, signToken } from "./lib/auth.js";
 import { geocodePlace } from "./lib/geocode.js";
-import { fetchShopifyOrdersByEmail, createShopifyDraftOrder } from "./shopify.js";
+import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct } from "./shopify.js";
 
 const phoneSchema = z.string().min(6).max(20);
 const emailSchema = z.string().email();
@@ -2361,6 +2361,23 @@ export function createRouter(io?: Server) {
         }
       }
 
+      // Fetch description from Shopify if description is empty and shopifyProductId is provided
+      let description = body.description && body.description.trim() !== "" ? body.description.trim() : null;
+      const shopifyProductId = body.shopifyProductId && body.shopifyProductId.trim() !== "" ? body.shopifyProductId.trim() : null;
+      
+      if (!description && shopifyProductId) {
+        try {
+          const shopifyProduct = await fetchShopifyProduct(shopifyProductId);
+          if (shopifyProduct && shopifyProduct.description) {
+            description = shopifyProduct.description;
+            console.log(`Fetched description from Shopify for product ${shopifyProductId}`);
+          }
+        } catch (error) {
+          console.error("Error fetching Shopify product description:", error);
+          // Continue without description from Shopify
+        }
+      }
+
       // Prepare data, converting empty strings to null
       const createData: any = {
         eventId: req.params.eventId,
@@ -2370,6 +2387,7 @@ export function createRouter(io?: Server) {
         deity: body.deity && body.deity.trim() !== "" ? body.deity : null,
         planet: body.planet && body.planet.trim() !== "" ? body.planet : null,
         benefits: body.benefits,
+        description: description,
         beejMantra: body.beejMantra && body.beejMantra.trim() !== "" ? body.beejMantra : null,
         images: body.images,
         model3dUrl: body.model3dUrl && body.model3dUrl.trim() !== "" ? body.model3dUrl.trim() : null,
@@ -2377,7 +2395,7 @@ export function createRouter(io?: Server) {
         darshanEnd: body.darshanEnd && body.darshanEnd.trim() !== "" ? new Date(body.darshanEnd) : null,
         isVisible: body.isVisible ?? true,
         tags: body.tags,
-        shopifyProductId: body.shopifyProductId && body.shopifyProductId.trim() !== "" ? body.shopifyProductId : null,
+        shopifyProductId: shopifyProductId,
         shopifyVariantId: body.shopifyVariantId && body.shopifyVariantId.trim() !== "" ? body.shopifyVariantId : null,
         qrCode: body.qrCode && body.qrCode.trim() !== "" ? body.qrCode.trim() : null,
       };
@@ -2985,6 +3003,7 @@ export function createRouter(io?: Server) {
           deity: z.string().optional(),
           planet: z.string().optional(),
           benefits: z.array(z.string()).optional(),
+          description: z.string().optional(),
           beejMantra: z.string().optional(),
           images: z.array(z.string()).optional(),
           model3dUrl: z.string().optional(),
@@ -3013,6 +3032,27 @@ export function createRouter(io?: Server) {
         }
       }
       
+      // Fetch description from Shopify if description is empty and shopifyProductId is provided
+      let description = body.description !== undefined 
+        ? (body.description && body.description.trim() !== "" ? body.description.trim() : null)
+        : undefined;
+      const shopifyProductId = body.shopifyProductId !== undefined
+        ? (body.shopifyProductId && body.shopifyProductId.trim() !== "" ? body.shopifyProductId.trim() : null)
+        : undefined;
+      
+      if (description === null && shopifyProductId) {
+        try {
+          const shopifyProduct = await fetchShopifyProduct(shopifyProductId);
+          if (shopifyProduct && shopifyProduct.description) {
+            description = shopifyProduct.description;
+            console.log(`Fetched description from Shopify for product ${shopifyProductId}`);
+          }
+        } catch (error) {
+          console.error("Error fetching Shopify product description:", error);
+          // Continue without description from Shopify
+        }
+      }
+      
       // Prepare update data, converting empty strings to null
       const updateData: any = {};
       if (body.name !== undefined) updateData.name = body.name;
@@ -3020,6 +3060,7 @@ export function createRouter(io?: Server) {
       if (body.deity !== undefined) updateData.deity = body.deity && body.deity.trim() !== "" ? body.deity : null;
       if (body.planet !== undefined) updateData.planet = body.planet && body.planet.trim() !== "" ? body.planet : null;
       if (body.benefits !== undefined) updateData.benefits = body.benefits;
+      if (description !== undefined) updateData.description = description;
       if (body.beejMantra !== undefined) updateData.beejMantra = body.beejMantra && body.beejMantra.trim() !== "" ? body.beejMantra : null;
       if (body.images !== undefined) updateData.images = body.images;
       if (body.model3dUrl !== undefined) updateData.model3dUrl = body.model3dUrl && body.model3dUrl.trim() !== "" ? body.model3dUrl.trim() : null;
@@ -3031,7 +3072,7 @@ export function createRouter(io?: Server) {
       }
       if (body.isVisible !== undefined) updateData.isVisible = body.isVisible;
       if (body.tags !== undefined) updateData.tags = body.tags;
-      if (body.shopifyProductId !== undefined) updateData.shopifyProductId = body.shopifyProductId && body.shopifyProductId.trim() !== "" ? body.shopifyProductId : null;
+      if (shopifyProductId !== undefined) updateData.shopifyProductId = shopifyProductId;
       if (body.shopifyVariantId !== undefined) updateData.shopifyVariantId = body.shopifyVariantId && body.shopifyVariantId.trim() !== "" ? body.shopifyVariantId : null;
       if (body.qrCode !== undefined) updateData.qrCode = body.qrCode && body.qrCode.trim() !== "" ? body.qrCode.trim() : null;
 

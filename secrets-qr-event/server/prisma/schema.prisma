@@ -150,8 +150,9 @@ model ExhibitItem {
   rarity    String?
   deity     String?
   planet    String?
-  benefits  Json?
-  beejMantra String?
+  benefits  Json? // Deprecated - kept for backward compatibility
+  description String? // New field to replace benefits
+  beejMantra String? // Deprecated - kept for backward compatibility
   images    Json?
   model3dUrl String?
   darshanStart DateTime?
@@ -160,7 +161,7 @@ model ExhibitItem {
   tags      Json?
 
   shopifyProductId String?
-  shopifyVariantId String?
+  shopifyVariantId String? // Deprecated - kept for backward compatibility
   qrCode           String? @unique // Unique QR code identifier for redirect URLs
 
   recommendationItems RecommendationItem[]

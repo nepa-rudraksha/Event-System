@@ -33,14 +33,16 @@ export type ExhibitItem = {
   rarity?: string | null;
   deity?: string | null;
   planet?: string | null;
-  benefits?: string[] | null;
-  beejMantra?: string | null;
+  benefits?: string[] | null; // Deprecated - use description instead
+  description?: string | null; // New field to replace benefits
+  beejMantra?: string | null; // Deprecated
   images?: string[] | null;
   model3dUrl?: string | null;
   darshanStart?: string | null;
   darshanEnd?: string | null;
   tags?: string[] | null;
-  shopifyVariantId?: string | null;
+  shopifyProductId?: string | null;
+  shopifyVariantId?: string | null; // Deprecated
 };
 
 export type Visitor = {

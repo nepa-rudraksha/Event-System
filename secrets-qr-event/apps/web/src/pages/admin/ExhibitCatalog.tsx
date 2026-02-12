@@ -37,6 +37,7 @@ export default function ExhibitCatalog() {
       deity: "",
       planet: "",
       benefits: [],
+      description: "",
       beejMantra: "",
       images: [],
       model3dUrl: "",
@@ -186,10 +187,13 @@ export default function ExhibitCatalog() {
                   />
                 </Field>
               </div>
-              <Field label="Beej Mantra">
-                <Input
-                  value={formData.beejMantra || ""}
-                  onChange={(v) => setFormData({ ...formData, beejMantra: v })}
+              <Field label="Description">
+                <textarea
+                  value={formData.description || ""}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full rounded-xl border-2 border-creamDark bg-white px-4 py-4 text-base text-textDark outline-none focus:border-gold"
+                  rows={4}
+                  placeholder="Enter product description. If Shopify Product ID is provided, description will be fetched from Shopify if this field is empty."
                 />
               </Field>
               <Field label="Images (comma-separated URLs)">
@@ -280,22 +284,16 @@ export default function ExhibitCatalog() {
                   placeholder="Museum Grade, 1 Mukhi, Rare"
                 />
               </Field>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Shopify Product ID">
-                  <Input
-                    value={formData.shopifyProductId || ""}
-                    onChange={(v) => setFormData({ ...formData, shopifyProductId: v })}
-                    placeholder="gid://shopify/Product/123456"
-                  />
-                </Field>
-                <Field label="Shopify Variant ID">
-                  <Input
-                    value={formData.shopifyVariantId || ""}
-                    onChange={(v) => setFormData({ ...formData, shopifyVariantId: v })}
-                    placeholder="gid://shopify/ProductVariant/123456"
-                  />
-                </Field>
-              </div>
+              <Field label="Shopify Product ID">
+                <Input
+                  value={formData.shopifyProductId || ""}
+                  onChange={(v) => setFormData({ ...formData, shopifyProductId: v })}
+                  placeholder="gid://shopify/Product/123456 or just 123456"
+                />
+                <p className="text-xs text-textLight mt-1">
+                  If provided, product description will be automatically fetched from Shopify when description field is empty.
+                </p>
+              </Field>
               <Field label="QR Code (unique identifier for QR redirect)">
                 <Input
                   value={formData.qrCode || ""}
@@ -366,6 +364,7 @@ export default function ExhibitCatalog() {
                           darshanStart: exhibit.darshanStart || "",
                           darshanEnd: exhibit.darshanEnd || "",
                           model3dUrl: exhibit.model3dUrl || "",
+                          description: exhibit.description || "",
                           shopifyProductId: exhibit.shopifyProductId || "",
                           shopifyVariantId: exhibit.shopifyVariantId || "",
                           qrCode: exhibit.qrCode || "",
