@@ -12,15 +12,19 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const raw = localStorage.getItem("nr_admin_session");
-  if (raw) {
-    try {
-      const session = JSON.parse(raw) as { token?: string };
-      if (session.token) {
-        config.headers.Authorization = `Bearer ${session.token}`;
+  // Only add admin token if Authorization header is not already set
+  // This allows visitor tokens to be used without being overridden
+  if (!config.headers.Authorization) {
+    const raw = localStorage.getItem("nr_admin_session");
+    if (raw) {
+      try {
+        const session = JSON.parse(raw) as { token?: string };
+        if (session.token) {
+          config.headers.Authorization = `Bearer ${session.token}`;
+        }
+      } catch {
+        // ignore parsing errors
       }
-    } catch {
-      // ignore parsing errors
     }
   }
   return config;
