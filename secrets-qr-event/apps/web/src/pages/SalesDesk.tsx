@@ -25,6 +25,7 @@ export default function SalesDesk() {
   const [totalAmount, setTotalAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"recommendations" | "orders">("recommendations");
+  const [accessoryPoojaPrices, setAccessoryPoojaPrices] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!session) {
@@ -65,22 +66,61 @@ export default function SalesDesk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, session]); // Removed loadData from dependencies to prevent infinite loop
 
+  const [accessoryPoojaPrices, setAccessoryPoojaPrices] = useState<Record<string, number>>({});
+
+  // Fetch accessory/pooja prices in INR on component mount
+  useEffect(() => {
+    const fetchAccessoryPoojaPrices = async () => {
+      const allVariantIds = [
+        "47409161699570", // Silver Capping
+        "47409161666802", // Rudraksha Chain
+        "47409161404658", // Silver Chain in Mala
+        "47409161371890", // Silver Chain in Rudraksha
+        "42114197815538", // Rudraksha Prana Pratishtha Pooja
+        "48656302047474", // Trividha Prana Pratishtha Pooja
+        "48656302801138", // Dwadasha Maha Prana Pratishtha Pooja
+      ];
+      
+      if (allVariantIds.length > 0) {
+        try {
+          const { fetchVariantPrices } = await import("../lib/api");
+          const prices = await fetchVariantPrices(allVariantIds);
+          setAccessoryPoojaPrices(prices || {});
+        } catch (err) {
+          console.error("Failed to fetch accessory/pooja prices:", err);
+          // Set fallback prices (these should be updated to INR values)
+          const fallbackPrices: Record<string, number> = {
+            "47409161699570": 5,
+            "47409161666802": 150,
+            "47409161404658": 90,
+            "47409161371890": 60,
+            "42114197815538": 299,
+            "48656302047474": 599,
+            "48656302801138": 1200,
+          };
+          setAccessoryPoojaPrices(fallbackPrices);
+        }
+      }
+    };
+    
+    fetchAccessoryPoojaPrices();
+  }, []);
+
   const calculateTotalFromRecommendations = (consultation: any): number => {
     if (!consultation?.recommendations) return 0;
 
-    // Accessories costs
+    // Use fetched prices from Shopify, fallback to stored prices
     const ACCESSORIES_COSTS: Record<string, number> = {
-      "47409161699570": 5, // Silver Capping
-      "47409161666802": 150, // Rudraksha Chain
-      "47409161404658": 90, // Silver Chain in Mala
-      "47409161371890": 60, // Silver Chain in Rudraksha
+      "47409161699570": accessoryPoojaPrices["47409161699570"] || accessoryPoojaPrices["gid://shopify/ProductVariant/47409161699570"] || 5,
+      "47409161666802": accessoryPoojaPrices["47409161666802"] || accessoryPoojaPrices["gid://shopify/ProductVariant/47409161666802"] || 150,
+      "47409161404658": accessoryPoojaPrices["47409161404658"] || accessoryPoojaPrices["gid://shopify/ProductVariant/47409161404658"] || 90,
+      "47409161371890": accessoryPoojaPrices["47409161371890"] || accessoryPoojaPrices["gid://shopify/ProductVariant/47409161371890"] || 60,
     };
 
-    // Poojas costs
     const POOJAS_COSTS: Record<string, number> = {
-      "42114197815538": 299, // Rudraksha Prana Pratishtha Pooja
-      "48656302047474": 599, // Trividha Prana Pratishtha Pooja
-      "48656302801138": 1200, // Dwadasha Maha Prana Pratishtha Pooja
+      "42114197815538": accessoryPoojaPrices["42114197815538"] || accessoryPoojaPrices["gid://shopify/ProductVariant/42114197815538"] || 299,
+      "48656302047474": accessoryPoojaPrices["48656302047474"] || accessoryPoojaPrices["gid://shopify/ProductVariant/48656302047474"] || 599,
+      "48656302801138": accessoryPoojaPrices["48656302801138"] || accessoryPoojaPrices["gid://shopify/ProductVariant/48656302801138"] || 1200,
     };
 
     return consultation.recommendations.reduce((total: number, rec: any) => {
@@ -117,7 +157,10 @@ export default function SalesDesk() {
           (v: any) => v.id === rec.mappedShopifyVariantId
         );
         if (variant) {
-          const price = parseFloat(variant.price?.amount || "0");
+          // Handle both price formats: object with amount or string
+          const price = typeof variant.price === "string" 
+            ? parseFloat(variant.price) || 0
+            : parseFloat(variant.price?.amount || "0");
           itemTotal += price * quantity;
         }
       }
@@ -321,7 +364,7 @@ export default function SalesDesk() {
                               </div>
                             </div>
                             <div className="text-xs text-textLight">
-                              Calculated: ${calculateTotalFromRecommendations(consultation).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              Calculated: ₹{calculateTotalFromRecommendations(consultation).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <PrimaryButton
                               onClick={() => handleCreateOrder(consultation.id)}
@@ -361,7 +404,7 @@ export default function SalesDesk() {
                               {order.consultation?.visitor?.name} • {order.consultation?.visitor?.phone}
                             </p>
                             <p className="text-sm font-semibold text-gold">
-                              ${order.totalAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency}
+                              ₹{order.totalAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency && order.currency !== "INR" ? `(${order.currency})` : ""}
                             </p>
                             {order.paymentId && (
                               <p className="text-xs text-textLight mt-1">

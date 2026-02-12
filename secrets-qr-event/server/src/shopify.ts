@@ -272,6 +272,16 @@ export async function createShopifyDraftOrder(
         customAttributes: item.customAttributes || [],
       })),
       note: note || "Created from Expert Consultation",
+      // Set shipping address with India to ensure INR currency
+      // The currency will be determined by the store's market settings or customer location
+      shippingAddress: {
+        country: "India",
+        countryCode: "IN",
+        province: "",
+        city: "",
+        address1: "",
+        zip: "",
+      },
     };
 
     // Add discount if provided
