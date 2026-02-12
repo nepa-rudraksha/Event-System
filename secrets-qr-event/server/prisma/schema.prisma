@@ -151,7 +151,7 @@ model ExhibitItem {
   deity     String?
   planet    String?
   benefits  Json? // Deprecated - kept for backward compatibility
-  description String? // New field to replace benefits
+  description String? @db.Text // New field to replace benefits (TEXT type for long descriptions)
   beejMantra String? // Deprecated - kept for backward compatibility
   images    Json?
   model3dUrl String?
