@@ -255,9 +255,25 @@ export default function ExhibitDetail() {
             {item.description && (
               <div className="pt-4 border-t border-creamDark">
                 <h3 className="text-heading text-textDark mb-3">Description</h3>
-                <div className="text-body text-textMedium whitespace-pre-line leading-relaxed">
-                  {item.description}
-                </div>
+                <div 
+                  className="text-body text-textMedium leading-relaxed
+                    [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:text-textDark [&_h1]:mb-4 [&_h1]:mt-6
+                    [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-textDark [&_h2]:mb-3 [&_h2]:mt-5
+                    [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-textDark [&_h3]:mb-2 [&_h3]:mt-4
+                    [&_p]:mb-4 [&_p]:text-textMedium
+                    [&_strong]:font-semibold [&_strong]:text-textDark
+                    [&_em]:italic
+                    [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4 [&_ul]:text-textMedium
+                    [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4 [&_ol]:text-textMedium
+                    [&_li]:mb-2 [&_li]:text-textMedium
+                    [&_a]:text-gold [&_a]:underline hover:[&_a]:text-gold/80
+                    [&_blockquote]:border-l-4 [&_blockquote]:border-gold [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-textLight [&_blockquote]:my-4
+                    [&_hr]:border-creamDark [&_hr]:my-6
+                    [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:my-4
+                    [&_code]:bg-cream [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono
+                    [&_pre]:bg-cream [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-4"
+                  dangerouslySetInnerHTML={{ __html: item.description }}
+                />
               </div>
             )}
 
