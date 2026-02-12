@@ -7,6 +7,7 @@ import ConsultationBooking from "./pages/ConsultationBooking";
 import ConsultationDetails from "./pages/ConsultationDetails";
 import ExhibitList from "./pages/ExhibitList";
 import ExhibitDetail from "./pages/ExhibitDetail";
+import AskExpert from "./pages/AskExpert";
 import MyConsultation from "./pages/MyConsultation";
 import VisitorLogin from "./pages/VisitorLogin";
 import ExpertQueue from "./pages/ExpertQueue";
