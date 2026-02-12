@@ -1,0 +1,359 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+enum Role {
+  ADMIN
+  EXHIBITION_MANAGER
+  EXPERT
+  SALES
+  REGISTRATION
+}
+
+enum TokenStatus {
+  WAITING
+  IN_PROGRESS
+  DONE
+  NO_SHOW
+}
+
+enum SalesStatus {
+  INTERESTED
+  HOLD
+  PURCHASED
+  FOLLOW_UP
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String
+  role      Role
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+  tokensAssigned Token[] @relation("DeskAssignedTokens")
+  consultations Consultation[]
+  salesAssignedOrders SalesOrderAssist[] @relation("SalesAssignedOrders")
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  venue       String
+  startTime   DateTime
+  endTime     DateTime
+  themeConfig Json?
+  heroText    String?
+  heroImage   String?
+  isActive    Boolean  @default(true)
+
+  announcements Announcement[]
+  itinerary     ItineraryItem[]
+  exhibits      ExhibitItem[]
+  tokens        Token[]
+  visitors      Visitor[]
+  opsChecklist  OpsInventoryChecklist[]
+
+  consultations Consultation[]
+  whatsappTemplates WhatsAppTemplate[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Visitor {
+  id              String   @id @default(cuid())
+  eventId          String
+  event            Event    @relation(fields: [eventId], references: [id])
+  name            String
+  phone           String
+  email           String
+  otpVerified     Boolean  @default(false)
+  existingCustomer Boolean @default(false)
+  consentWhatsapp Boolean  @default(true)
+
+  birthDetails    VisitorBirthDetails?
+  tokens          Token[]
+  consultations   Consultation[]
+  salesAssists    SalesOrderAssist[]
+  notifications   NotificationLog[]
+  orders          Order[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([eventId, phone])
+  @@index([eventId, email])
+  @@unique([eventId, phone]) // phone is primary event identity
+}
+
+model VisitorBirthDetails {
+  id        String   @id @default(cuid())
+  visitorId String   @unique
+  visitor   Visitor  @relation(fields: [visitorId], references: [id])
+  dob       DateTime?
+  tob       String?     // store "HH:mm" (simple)
+  pob       String?
+  lat       Float?
+  lng       Float?
+  timezone  String?
+  updatedAt DateTime @updatedAt
+}
+
+model Announcement {
+  id       String   @id @default(cuid())
+  eventId  String
+  event    Event    @relation(fields: [eventId], references: [id])
+  title    String
+  message  String
+  priority Int      @default(1)
+  startAt  DateTime?
+  endAt    DateTime?
+  isActive Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([eventId, isActive, priority])
+}
+
+model ItineraryItem {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  timeLabel   String   // "10:30 AM"
+  title       String
+  description String?
+  isActive    Boolean  @default(true)
+
+  @@index([eventId, isActive])
+}
+
+model ExhibitItem {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+
+  type      String
+  name      String
+  rarity    String?
+  deity     String?
+  planet    String?
+  benefits  Json?
+  beejMantra String?
+  images    Json?
+  model3dUrl String?
+  darshanStart DateTime?
+  darshanEnd   DateTime?
+  isVisible Boolean @default(true)
+  tags      Json?
+
+  shopifyProductId String?
+  shopifyVariantId String?
+  qrCode           String? @unique // Unique QR code identifier for redirect URLs
+
+  recommendationItems RecommendationItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId, type, isVisible])
+  @@index([qrCode])
+}
+
+
+model Token {
+  id          String      @id @default(cuid())
+  eventId     String
+  event       Event       @relation(fields: [eventId], references: [id])
+  tokenNo     Int
+  visitorId   String
+  visitor     Visitor     @relation(fields: [visitorId], references: [id])
+  status      TokenStatus @default(WAITING)
+
+  assignedDesk String?
+  assignedToUserId String?
+  assignedToUser User? @relation("DeskAssignedTokens", fields: [assignedToUserId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  consultation Consultation?
+
+  @@unique([eventId, tokenNo])
+  @@index([eventId, status])
+}
+
+model Consultation {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  visitorId String
+  visitor   Visitor  @relation(fields: [visitorId], references: [id])
+  expertId  String?
+  expert    User?    @relation(fields: [expertId], references: [id])
+  tokenId   String   @unique
+  token     Token    @relation(fields: [tokenId], references: [id])
+
+  notes     String?
+  astrologyReport Json? // Full astrology report from API
+  createdAt DateTime @default(now())
+
+  recommendationLock RecommendationLock?
+  recommendations RecommendationItem[]
+  salesAssist SalesOrderAssist?
+  orders Order[]
+
+  @@index([eventId, visitorId])
+  @@index([expertId])
+}
+
+model RecommendationLock {
+  id             String   @id @default(cuid())
+  consultationId String   @unique
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+  lockedAt       DateTime @default(now())
+  lockedByUserId String?
+}
+
+model RecommendationItem {
+  id             String @id @default(cuid())
+  consultationId String
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+
+  exhibitItemId  String?
+  exhibitItem    ExhibitItem? @relation(fields: [exhibitItemId], references: [id])
+
+  mappedShopifyVariantId String?
+  productDetails Json? // Full Shopify product details (title, images, variants, etc.)
+  checkoutLink   String? // Direct checkout link for this product
+  quantity       Int @default(1) // Quantity of this product
+  priority       Int
+  reason         String
+  notes          String?
+
+  createdAt      DateTime @default(now())
+
+  @@index([consultationId, priority])
+}
+
+model SalesOrderAssist {
+  id             String   @id @default(cuid())
+  visitorId      String
+  visitor        Visitor  @relation(fields: [visitorId], references: [id])
+  consultationId String   @unique
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+  salesAgentId   String? // Sales agent handling this
+  salesAgent     User?   @relation("SalesAssignedOrders", fields: [salesAgentId], references: [id])
+
+  checkoutLink   String?
+  status         SalesStatus @default(INTERESTED)
+  salesNotes     String?
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  @@index([salesAgentId, status])
+}
+
+model Order {
+  id             String   @id @default(cuid())
+  consultationId String
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+  visitorId      String
+  visitor        Visitor  @relation(fields: [visitorId], references: [id])
+
+  orderNumber    String? @unique
+  paymentStatus  String @default("pending") // pending/paid/failed
+  paymentId      String? // External payment ID
+  orderStatus    String @default("pending") // pending/processing/completed/cancelled
+  totalAmount    Float?
+  currency       String @default("USD")
+  
+  items          Json? // Order items with product details
+  processedBy    String? // Sales agent who processed
+  processedAt    DateTime?
+  
+  whatsappSent   Boolean @default(false)
+  whatsappSentAt DateTime?
+  
+  // Shopify integration
+  shopifyOrderId    String? // Shopify order ID (gid://shopify/Order/...)
+  shopifyDraftId    String? // Shopify draft order ID
+  shopifyCheckoutUrl String? // Checkout URL from draft order
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([consultationId])
+  @@index([visitorId])
+  @@index([paymentStatus, orderStatus])
+  @@index([shopifyOrderId])
+}
+
+model WhatsAppTemplate {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  
+  templateKey String   // e.g., "consultation_time_event", "order_confirmed"
+  templateName String  // Display name
+  description String?
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([eventId, templateKey])
+  @@index([eventId, isActive])
+}
+
+model NotificationLog {
+  id         String   @id @default(cuid())
+  visitorId  String
+  visitor    Visitor  @relation(fields: [visitorId], references: [id])
+  templateKey String
+  channel    String   // whatsapp
+  status     String   // sent/failed
+  payload    Json?    // Request payload
+  response   Json?    // API response
+  sentAt     DateTime @default(now())
+}
+
+model OpsInventoryChecklist {
+  id          String @id @default(cuid())
+  eventId     String
+  event       Event  @relation(fields: [eventId], references: [id])
+
+  category    String
+  itemName    String
+  requiredQty Int
+  packedQty   Int @default(0)
+  status      String @default("pending") // pending/packed/loaded/arrived
+  assignedTo  String?
+  notes       String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
