@@ -1566,10 +1566,13 @@ export function createRouter(io?: Server) {
       for (const batch of batches) {
         const recipients = batch.map(v => ({ waNumber: v.phone.replace(/[^0-9]/g, "") }));
         
+        const templateName = "event_information_update";
+        console.log(`[ANNOUNCEMENT] Using template: ${templateName}`);
+        
         const whatsappPayload = {
           channelId: process.env.WHATSAPP_CHANNEL_ID || "6971f3a7cb205bd2e61ce326",
           template: {
-            name: "event_information_update",
+            name: templateName,
             language: "en",
             components: [
               {
@@ -1583,6 +1586,8 @@ export function createRouter(io?: Server) {
           },
           recipients,
         };
+
+        console.log(`[ANNOUNCEMENT] Payload template name: ${whatsappPayload.template.name}`);
 
         try {
           const whatsappResponse = await fetch("https://api.whatsapp.nepalirudraksha.com/templates/bulk-send", {
