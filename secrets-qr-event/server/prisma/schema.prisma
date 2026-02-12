@@ -164,6 +164,14 @@ model ExhibitItem {
   shopifyVariantId String? // Deprecated - kept for backward compatibility
   qrCode           String? @unique // Unique QR code identifier for redirect URLs
 
+  // Pricing fields
+  actualPrice      Float? // Actual price in INR
+  discountPercentage Float? // Discount percentage (0-100)
+  discountedPrice  Float? // Discounted price in INR
+
+  // Ask Expert page content
+  askExpertContent String? @db.Text // Rich text content for Ask Expert page
+
   recommendationItems RecommendationItem[]
 
   createdAt DateTime @default(now())

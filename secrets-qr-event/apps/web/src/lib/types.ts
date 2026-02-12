@@ -43,6 +43,10 @@ export type ExhibitItem = {
   tags?: string[] | null;
   shopifyProductId?: string | null;
   shopifyVariantId?: string | null; // Deprecated
+  actualPrice?: number | null;
+  discountPercentage?: number | null;
+  discountedPrice?: number | null;
+  askExpertContent?: string | null;
 };
 
 export type Visitor = {

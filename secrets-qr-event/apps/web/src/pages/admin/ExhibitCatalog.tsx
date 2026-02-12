@@ -4,6 +4,7 @@ import { SectionCard, PrimaryButton, Field, Input, GhostButton, Chip } from "../
 import { AdminNav } from "../../components/AdminNav";
 import { getAdminToken } from "../../lib/adminSession";
 import { api } from "../../lib/api";
+import { RichTextEditor } from "../../components/RichTextEditor";
 
 export default function ExhibitCatalog() {
   const { eventId } = useParams<{ eventId: string }>();
