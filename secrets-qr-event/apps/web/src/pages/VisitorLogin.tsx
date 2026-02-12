@@ -16,17 +16,35 @@ export default function VisitorLogin() {
 
   useEffect(() => {
     const tokenFromUrl = searchParams.get("token");
-    setToken(tokenFromUrl);
+    if (tokenFromUrl) {
+      // Decode the token in case it's URL-encoded
+      const decodedToken = decodeURIComponent(tokenFromUrl);
+      console.log("[VisitorLogin] Token from URL:", {
+        original: tokenFromUrl?.substring(0, 50) + "...",
+        decoded: decodedToken?.substring(0, 50) + "...",
+        length: decodedToken?.length,
+      });
+      setToken(decodedToken);
+    }
   }, [searchParams]);
 
   const handleLogin = async (loginToken: string) => {
     setLoading(true);
     setError(null);
+    
+    // Clean and decode the token
+    const cleanToken = loginToken.trim();
+    console.log("[VisitorLogin] Attempting login with token:", {
+      tokenPreview: cleanToken.substring(0, 50) + "...",
+      tokenLength: cleanToken.length,
+      startsWithEyJ: cleanToken.startsWith("eyJ"),
+    });
+    
     try {
       // Verify token and get visitor info
       const response = await api.get("/auth/verify-visitor", {
         headers: {
-          Authorization: `Bearer ${loginToken}`,
+          Authorization: `Bearer ${cleanToken}`,
         },
       });
 

@@ -23,9 +23,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = auth.replace("Bearer ", "");
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
+    console.log("[requireAuth] Decoded token:", { id: decoded.id, email: decoded.email, role: decoded.role, name: decoded.name });
     (req as Request & { user?: AuthUser }).user = decoded;
     next();
-  } catch {
+  } catch (error: any) {
+    console.error("[requireAuth] Token verification failed:", error.message);
     res.status(401).json({ error: "Invalid token" });
   }
 }

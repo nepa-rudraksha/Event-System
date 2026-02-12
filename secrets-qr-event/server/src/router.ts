@@ -280,9 +280,16 @@ export function createRouter(io?: Server) {
     "/auth/verify-visitor",
     requireAuth,
     asyncHandler(async (req, res) => {
-      const user = (req as any).user;
+      const user = (req as Request & { user?: AuthUser }).user;
+      console.log("[verify-visitor] User from token:", { id: user?.id, email: user?.email, role: user?.role, name: user?.name });
+      if (!user) {
+        console.log("[verify-visitor] No user found in request");
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
       if (user.role !== "VISITOR") {
-        res.status(403).json({ error: "Invalid token type" });
+        console.log("[verify-visitor] Invalid token type - expected VISITOR, got:", user.role);
+        res.status(403).json({ error: "Invalid token type", receivedRole: user.role });
         return;
       }
 
@@ -2580,7 +2587,7 @@ export function createRouter(io?: Server) {
 
       // Generate login link
       const baseUrl = process.env.WEB_ORIGIN || "http://localhost:5173";
-      const loginLink = `${baseUrl}/e/${event.slug}/login?token=${loginToken}`;
+      const loginLink = `${baseUrl}/e/${event.slug}/login?token=${encodeURIComponent(loginToken)}`;
 
       // Generate QR code as data URL
       let qrCodeDataUrl: string;
@@ -2767,7 +2774,7 @@ export function createRouter(io?: Server) {
 
       // Generate login link
       const baseUrl = process.env.WEB_ORIGIN || "http://localhost:5173";
-      const loginLink = `${baseUrl}/e/${event.slug}/login?token=${loginToken}`;
+      const loginLink = `${baseUrl}/e/${event.slug}/login?token=${encodeURIComponent(loginToken)}`;
 
       // Generate QR code as data URL
       let qrCodeDataUrl: string = "";
@@ -2876,7 +2883,7 @@ export function createRouter(io?: Server) {
           });
 
           // Generate login link
-          const loginLink = `${baseUrl}/e/${event.slug}/login?token=${loginToken}`;
+          const loginLink = `${baseUrl}/e/${event.slug}/login?token=${encodeURIComponent(loginToken)}`;
 
           // Generate QR code
           let qrCodeDataUrl: string = "";
