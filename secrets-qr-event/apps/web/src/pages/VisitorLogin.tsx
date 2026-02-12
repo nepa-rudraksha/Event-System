@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppBar, AppShell, SectionCard, PrimaryButton, GhostButton } from "../components/ui";
 import { setSession } from "../lib/session";
@@ -13,32 +13,46 @@ export default function VisitorLogin() {
   const [error, setError] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const autoLoginAttemptedRef = useRef(false);
+  const isLoggingInRef = useRef(false);
 
-  useEffect(() => {
-    const tokenFromUrl = searchParams.get("token");
-    if (tokenFromUrl) {
-      // Decode the token in case it's URL-encoded
-      const decodedToken = decodeURIComponent(tokenFromUrl);
-      console.log("[VisitorLogin] Token from URL:", {
-        original: tokenFromUrl?.substring(0, 50) + "...",
-        decoded: decodedToken?.substring(0, 50) + "...",
-        length: decodedToken?.length,
-      });
-      setToken(decodedToken);
-    }
-  }, [searchParams]);
-
-  const handleLogin = async (loginToken: string) => {
+  const handleLogin = useCallback(async (loginToken: string) => {
+    // Prevent multiple simultaneous login attempts
+    if (isLoggingInRef.current) return;
+    
+    isLoggingInRef.current = true;
     setLoading(true);
     setError(null);
     
-    // Clean and decode the token
-    const cleanToken = loginToken.trim();
+    // Clean the token - remove any whitespace and ensure it's a valid JWT
+    let cleanToken = loginToken.trim();
+    
+    // Remove any URL encoding artifacts
+    if (cleanToken.includes('%')) {
+      try {
+        cleanToken = decodeURIComponent(cleanToken);
+      } catch (e) {
+        // If decoding fails, continue with the original
+      }
+    }
+    
+    // Final trim
+    cleanToken = cleanToken.trim();
+    
     console.log("[VisitorLogin] Attempting login with token:", {
       tokenPreview: cleanToken.substring(0, 50) + "...",
       tokenLength: cleanToken.length,
       startsWithEyJ: cleanToken.startsWith("eyJ"),
+      hasSpaces: cleanToken.includes(" "),
+      hasPercent: cleanToken.includes("%"),
     });
+    
+    // Validate token format
+    if (!cleanToken.startsWith("eyJ") || cleanToken.length < 100) {
+      setError("Invalid token format. Please use a valid login link.");
+      setLoading(false);
+      return;
+    }
     
     try {
       // Verify token and get visitor info
@@ -70,7 +84,7 @@ export default function VisitorLogin() {
       try {
         await api.post("/visitors/first-login", {}, {
           headers: {
-            Authorization: `Bearer ${loginToken}`,
+            Authorization: `Bearer ${cleanToken}`,
           },
         });
       } catch (err) {
@@ -85,8 +99,39 @@ export default function VisitorLogin() {
       setError(err.response?.data?.error || "Invalid or expired login link");
     } finally {
       setLoading(false);
+      isLoggingInRef.current = false;
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    const tokenFromUrl = searchParams.get("token");
+    if (tokenFromUrl && !autoLoginAttemptedRef.current) {
+      // searchParams.get() already decodes URL-encoded values automatically
+      // Just clean the token (remove any whitespace)
+      const cleanToken = tokenFromUrl.trim();
+      
+      console.log("[VisitorLogin] Token from URL:", {
+        tokenPreview: cleanToken.substring(0, 50) + "...",
+        length: cleanToken.length,
+        isValidJWT: cleanToken.startsWith("eyJ"),
+        hasSpaces: cleanToken.includes(" "),
+        hasPercent: cleanToken.includes("%"),
+      });
+      
+      setToken(cleanToken);
+      
+      // Auto-login if token is valid JWT format (only once)
+      if (cleanToken.startsWith("eyJ") && cleanToken.length > 100) {
+        autoLoginAttemptedRef.current = true;
+        // Small delay to ensure state is set and prevent race conditions
+        const timeoutId = setTimeout(() => {
+          handleLogin(cleanToken);
+        }, 200);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [searchParams, handleLogin]);
 
   const handleQRScan = (scannedText: string) => {
     setShowScanner(false);
