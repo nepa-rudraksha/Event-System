@@ -66,8 +66,6 @@ export default function SalesDesk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, session]); // Removed loadData from dependencies to prevent infinite loop
 
-  const [accessoryPoojaPrices, setAccessoryPoojaPrices] = useState<Record<string, number>>({});
-
   // Fetch accessory/pooja prices in INR on component mount
   useEffect(() => {
     const fetchAccessoryPoojaPrices = async () => {
