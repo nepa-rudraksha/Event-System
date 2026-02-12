@@ -252,6 +252,29 @@ export default function ExhibitDetail() {
               </div>
             )}
 
+            {/* Price Display - After Tags */}
+            {(item.actualPrice || item.discountedPrice) && (
+              <div className="pt-4 border-t border-creamDark">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {item.discountedPrice && item.actualPrice ? (
+                    <>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-textDark">₹{item.discountedPrice.toLocaleString('en-IN')}</span>
+                        <span className="text-lg text-textLight line-through">₹{item.actualPrice.toLocaleString('en-IN')}</span>
+                      </div>
+                      {item.discountPercentage && (
+                        <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
+                          {item.discountPercentage}% OFF
+                        </span>
+                      )}
+                    </>
+                  ) : item.actualPrice ? (
+                    <span className="text-2xl font-semibold text-textDark">₹{item.actualPrice.toLocaleString('en-IN')}</span>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
             {item.description && (
               <div className="pt-4 border-t border-creamDark">
                 <h3 className="text-heading text-textDark mb-3">Description</h3>
@@ -291,7 +314,7 @@ export default function ExhibitDetail() {
         </SectionCard>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <PrimaryButton onClick={() => navigate(`/e/${slug}/consultation`)}>
+          <PrimaryButton onClick={() => navigate(`/e/${slug}/exhibits/${type}/${id}/ask-expert`)}>
             <div className="flex items-center justify-center gap-2">
               <MessageIcon size={18} />
               <span>Ask Expert</span>

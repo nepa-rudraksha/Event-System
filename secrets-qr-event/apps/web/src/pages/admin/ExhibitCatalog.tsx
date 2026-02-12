@@ -313,6 +313,75 @@ export default function ExhibitCatalog() {
                   </div>
                 )}
               </Field>
+              
+              {/* Pricing Fields */}
+              <div className="pt-4 border-t border-creamDark">
+                <h3 className="text-heading text-textDark mb-3">Pricing (INR)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Actual Price (₹)">
+                    <Input
+                      type="number"
+                      value={formData.actualPrice || ""}
+                      onChange={(v) => {
+                        const price = v ? parseFloat(v) : null;
+                        const discount = formData.discountPercentage;
+                        let discountedPrice = null;
+                        if (discount && price) {
+                          discountedPrice = price * (1 - discount / 100);
+                        }
+                        setFormData({ ...formData, actualPrice: price, discountedPrice });
+                      }}
+                      placeholder="e.g., 50000"
+                    />
+                  </Field>
+                  <Field label="Discount Percentage (%)">
+                    <Input
+                      type="number"
+                      value={formData.discountPercentage || ""}
+                      onChange={(v) => {
+                        const discount = v ? parseFloat(v) : null;
+                        const actualPrice = formData.actualPrice;
+                        let discountedPrice = null;
+                        if (discount && actualPrice) {
+                          discountedPrice = actualPrice * (1 - discount / 100);
+                        }
+                        setFormData({ ...formData, discountPercentage: discount, discountedPrice });
+                      }}
+                      placeholder="e.g., 10"
+                      min="0"
+                      max="100"
+                    />
+                  </Field>
+                  <Field label="Discounted Price (₹)">
+                    <Input
+                      type="number"
+                      value={formData.discountedPrice || ""}
+                      onChange={(v) => setFormData({ ...formData, discountedPrice: v ? parseFloat(v) : null })}
+                      placeholder="e.g., 45000"
+                      readOnly={!!formData.discountPercentage && !!formData.actualPrice}
+                      className={formData.discountPercentage && formData.actualPrice ? "bg-cream" : ""}
+                    />
+                    {formData.discountPercentage && formData.actualPrice && (
+                      <p className="text-xs text-textLight mt-1">Auto-calculated from discount %</p>
+                    )}
+                  </Field>
+                </div>
+              </div>
+
+              {/* Ask Expert Content */}
+              <div className="pt-4 border-t border-creamDark">
+                <Field label="Ask Expert Page Content (Rich Text)">
+                  <RichTextEditor
+                    value={formData.askExpertContent || ""}
+                    onChange={(v) => setFormData({ ...formData, askExpertContent: v })}
+                    placeholder="Enter content that will be displayed when visitors click 'Ask Expert'..."
+                  />
+                  <p className="text-xs text-textLight mt-2">
+                    This content will be shown on a dedicated page when visitors click the "Ask Expert" button.
+                  </p>
+                </Field>
+              </div>
+
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -369,6 +438,10 @@ export default function ExhibitCatalog() {
                           shopifyProductId: exhibit.shopifyProductId || "",
                           shopifyVariantId: exhibit.shopifyVariantId || "",
                           qrCode: exhibit.qrCode || "",
+                          actualPrice: exhibit.actualPrice || null,
+                          discountPercentage: exhibit.discountPercentage || null,
+                          discountedPrice: exhibit.discountedPrice || null,
+                          askExpertContent: exhibit.askExpertContent || "",
                         };
                         setFormData(editData);
                         setEditing(exhibit.id);

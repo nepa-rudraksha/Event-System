@@ -2469,6 +2469,10 @@ export function createRouter(io?: Server) {
           shopifyProductId: z.string().optional(),
           shopifyVariantId: z.string().optional(),
           qrCode: z.string().optional().nullable(),
+          actualPrice: z.number().optional().nullable(),
+          discountPercentage: z.number().optional().nullable(),
+          discountedPrice: z.number().optional().nullable(),
+          askExpertContent: z.string().optional().nullable(),
         })
         .parse(req.body);
 
@@ -2534,6 +2538,10 @@ export function createRouter(io?: Server) {
         shopifyProductId: shopifyProductId,
         shopifyVariantId: body.shopifyVariantId && body.shopifyVariantId.trim() !== "" ? body.shopifyVariantId : null,
         qrCode: body.qrCode && body.qrCode.trim() !== "" ? body.qrCode.trim() : null,
+        actualPrice: body.actualPrice !== undefined && body.actualPrice !== null ? parseFloat(String(body.actualPrice)) : null,
+        discountPercentage: body.discountPercentage !== undefined && body.discountPercentage !== null ? parseFloat(String(body.discountPercentage)) : null,
+        discountedPrice: body.discountedPrice !== undefined && body.discountedPrice !== null ? parseFloat(String(body.discountedPrice)) : null,
+        askExpertContent: body.askExpertContent && body.askExpertContent.trim() !== "" ? body.askExpertContent.trim() : null,
       };
 
       const exhibit = await prisma.exhibitItem.create({
@@ -3150,6 +3158,10 @@ export function createRouter(io?: Server) {
           shopifyProductId: z.string().optional(),
           shopifyVariantId: z.string().optional(),
           qrCode: z.string().optional().nullable(),
+          actualPrice: z.number().optional().nullable(),
+          discountPercentage: z.number().optional().nullable(),
+          discountedPrice: z.number().optional().nullable(),
+          askExpertContent: z.string().optional().nullable(),
         })
         .parse(req.body);
       
@@ -3211,6 +3223,10 @@ export function createRouter(io?: Server) {
       if (shopifyProductId !== undefined) updateData.shopifyProductId = shopifyProductId;
       if (body.shopifyVariantId !== undefined) updateData.shopifyVariantId = body.shopifyVariantId && body.shopifyVariantId.trim() !== "" ? body.shopifyVariantId : null;
       if (body.qrCode !== undefined) updateData.qrCode = body.qrCode && body.qrCode.trim() !== "" ? body.qrCode.trim() : null;
+      if (body.actualPrice !== undefined) updateData.actualPrice = body.actualPrice !== null ? parseFloat(String(body.actualPrice)) : null;
+      if (body.discountPercentage !== undefined) updateData.discountPercentage = body.discountPercentage !== null ? parseFloat(String(body.discountPercentage)) : null;
+      if (body.discountedPrice !== undefined) updateData.discountedPrice = body.discountedPrice !== null ? parseFloat(String(body.discountedPrice)) : null;
+      if (body.askExpertContent !== undefined) updateData.askExpertContent = body.askExpertContent && body.askExpertContent.trim() !== "" ? body.askExpertContent.trim() : null;
 
       const exhibit = await prisma.exhibitItem.update({
         where: { id: req.params.id },

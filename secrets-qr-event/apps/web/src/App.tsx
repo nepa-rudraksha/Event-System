@@ -44,6 +44,7 @@ export default function App() {
         <Route path="/e/:slug/consultation/details" element={<ConsultationDetails />} />
         <Route path="/e/:slug/exhibits/:type" element={<ExhibitList />} />
         <Route path="/e/:slug/exhibits/:type/:id" element={<ExhibitDetail />} />
+        <Route path="/e/:slug/exhibits/:type/:id/ask-expert" element={<AskExpert />} />
         <Route path="/e/:slug/my-consultation" element={<MyConsultation />} />
 
         <Route path="/ops/expert/login" element={<ExpertLogin />} />
