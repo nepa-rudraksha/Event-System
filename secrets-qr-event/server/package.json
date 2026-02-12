@@ -5,10 +5,12 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx src/main.ts",
+    "start": "tsx src/main.ts",
     "seed": "tsx src/seed.ts",
     "geocode-existing": "tsx src/geocode-existing.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
