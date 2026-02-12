@@ -173,7 +173,30 @@ Thank you for your purchase!
 
 ---
 
-## 8. Thank You with Feedback (`thank_you_feedback`)
+## 8. Visitor Registration (`visitor_registration`)
+
+**Purpose**: Send login link and QR code to admin-created visitors
+
+**Template Format**:
+```
+Hello {{1}},
+
+Your registration for the event is complete!
+
+You can log in using this link: {{2}}
+
+Thank you for joining us!
+```
+
+**Parameters**:
+- `{{1}}`: Visitor name
+- `{{2}}`: Login link (with token)
+
+**Usage**: Sent automatically when admin creates a visitor (after OTP verification)
+
+---
+
+## 9. Thank You with Feedback (`thank_you_feedback`)
 
 **Purpose**: Send thank you message with feedback link after consultation
 
@@ -231,10 +254,11 @@ All templates must be registered in the database for each event using the admin 
 ## Template Status
 
 - ✅ `otp_verification` - Implemented
-- ⏳ `visitor_welcome` - To be implemented
-- ⏳ `announcement` - To be implemented
+- ✅ `visitor_welcome` - Implemented
+- ✅ `announcement` - Implemented
 - ✅ `token_booked` - Implemented
 - ✅ `consultation_ready` - Implemented
 - ⏳ `consultation_get_ready` - To be implemented
 - ✅ `order_completed` - Implemented
+- ✅ `visitor_registration` - Implemented
 - ⏳ `thank_you_feedback` - To be implemented

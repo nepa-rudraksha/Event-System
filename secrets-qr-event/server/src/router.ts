@@ -2524,65 +2524,26 @@ export function createRouter(io?: Server) {
         qrCodeDataUrl = "";
       }
 
-      // Send WhatsApp message if consent given
-      let whatsappSent = false;
-      if (body.consentWhatsapp) {
-        try {
-          const whatsappPayload = {
-            channelId: process.env.WHATSAPP_CHANNEL_ID || "6971f3a7cb205bd2e61ce326",
-            template: {
-              name: "visitor_registration",
-              language: "en",
-              components: [
-                {
-                  type: "body",
-                  parameters: [
-                    { type: "text", text: visitor.name },
-                    { type: "text", text: loginLink },
-                  ],
-                },
-              ],
-            },
-            recipients: [
-              { waNumber: body.phone.replace(/[^0-9]/g, "") },
-            ],
-          };
-
-          const whatsappResponse = await fetch("https://api.whatsapp.nepalirudraksha.com/templates/bulk-send", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${process.env.WHATSAPP_API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OTc5Yzg5ZGIxMTdiMDYzYmE4ZGY4ZTgiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NzAwOTM3NTcsImV4cCI6MTc3MDY5ODU1N30.4Pz5dW8LDLeKJAdY7crlgtiOq1bMDUGY6mIijCi6W6g"}`,
-            },
-            body: JSON.stringify(whatsappPayload),
-          });
-
-          whatsappSent = whatsappResponse.ok;
-
-          await prisma.notificationLog.create({
-            data: {
-              visitorId: visitor.id,
-              templateKey: "visitor_registration",
-              channel: "whatsapp",
-              status: whatsappResponse.ok ? "sent" : "failed",
-              payload: whatsappPayload,
-              response: {
-                statusCode: whatsappResponse.status,
-                statusText: whatsappResponse.statusText,
-              },
-            },
-          });
-        } catch (error) {
-          console.error("WhatsApp send error:", error);
-        }
-      }
+      // Send WhatsApp message with login link (WhatsApp is now compulsory)
+      const registrationSent = await sendWhatsAppNotification(
+        event.id,
+        "visitor_registration",
+        visitor,
+        [
+          { type: "text", text: visitor.name },
+          { type: "text", text: loginLink },
+        ]
+      ).catch(err => {
+        console.error("Visitor registration WhatsApp send error:", err);
+        return { success: false };
+      });
 
       res.json({
         visitor,
         otp,
         loginLink,
         qrCodeDataUrl,
-        whatsappSent,
+        whatsappSent: registrationSent.success || false,
       });
     })
   );
