@@ -36,6 +36,27 @@ function getShopifyConfig() {
   };
 }
 
+// Helper function to get Shopify Storefront API configuration
+function getShopifyStorefrontConfig() {
+  const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_STORE || "";
+  const SHOPIFY_STORE = SHOPIFY_STORE_DOMAIN.includes(".")
+    ? SHOPIFY_STORE_DOMAIN.split(".")[0]
+    : SHOPIFY_STORE_DOMAIN;
+
+  const SHOPIFY_STOREFRONT_ACCESS_TOKEN = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN || "";
+  const SHOPIFY_STOREFRONT_API_VERSION = process.env.SHOPIFY_STOREFRONT_API_VERSION || "2024-01";
+  
+  // Storefront API endpoint (no /admin/ in the path)
+  const SHOPIFY_STOREFRONT_ENDPOINT = `https://${SHOPIFY_STORE}.myshopify.com/api/${SHOPIFY_STOREFRONT_API_VERSION}/graphql.json`;
+
+  return {
+    SHOPIFY_STORE,
+    SHOPIFY_STOREFRONT_ACCESS_TOKEN,
+    SHOPIFY_STOREFRONT_API_VERSION,
+    SHOPIFY_STOREFRONT_ENDPOINT,
+  };
+}
+
 interface ShopifyOrder {
   id: string;
   name: string;
@@ -399,7 +420,7 @@ export async function fetchShopifyProduct(productId: string): Promise<{ descript
 }
 
 /**
- * Search products in Shopify
+ * Search products in Shopify using Storefront API (for INR currency support)
  */
 export async function searchShopifyProducts(query: string, limit: number = 20): Promise<Array<{
   id: string;
@@ -414,13 +435,135 @@ export async function searchShopifyProducts(query: string, limit: number = 20): 
     availableForSale: boolean;
   }>;
 }>> {
-  const config = getShopifyConfig();
-  const { SHOPIFY_STORE, SHOPIFY_ACCESS_TOKEN, SHOPIFY_GRAPHQL_ENDPOINT, SHOPIFY_API_URL } = config;
+  const storefrontConfig = getShopifyStorefrontConfig();
+  const { SHOPIFY_STORE, SHOPIFY_STOREFRONT_ACCESS_TOKEN, SHOPIFY_STOREFRONT_ENDPOINT } = storefrontConfig;
   
-  if (!SHOPIFY_STORE || !SHOPIFY_ACCESS_TOKEN) {
-    console.warn("Shopify credentials not configured");
+  // Fallback to Admin API if Storefront token not configured
+  if (!SHOPIFY_STOREFRONT_ACCESS_TOKEN) {
+    console.warn("Shopify Storefront API token not configured, falling back to Admin API");
+    const adminConfig = getShopifyConfig();
+    if (!adminConfig.SHOPIFY_STORE || !adminConfig.SHOPIFY_ACCESS_TOKEN) {
+      console.warn("Shopify credentials not configured");
+      return [];
+    }
+    // Use Admin API as fallback (without currency context)
+    return searchShopifyProductsAdmin(query, limit);
+  }
+
+  try {
+    const searchQuery = `
+      query SearchProductsInINR($query: String!, $first: Int!) @inContext(country: IN) {
+        products(first: $first, query: $query) {
+          edges {
+            node {
+              id
+              title
+              handle
+              description
+              images(first: 3) {
+                edges {
+                  node {
+                    url
+                    altText
+                  }
+                }
+              }
+              variants(first: 10) {
+                edges {
+                  node {
+                    id
+                    title
+                    availableForSale
+                    price {
+                      amount
+                      currencyCode
+                    }
+                    compareAtPrice {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    // Storefront API query syntax: supports title, vendor, product_type, tag, etc.
+    const variables = {
+      query: `title:*${query}* OR description:*${query}*`,
+      first: limit,
+    };
+    
+    const response = await fetch(SHOPIFY_STOREFRONT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({ query: searchQuery, variables }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Shopify Storefront API error searching products:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
+      return [];
+    }
+
+    const data = await response.json();
+
+    if (data.errors) {
+      console.error("Shopify GraphQL errors searching products:", JSON.stringify(data.errors, null, 2));
+      return [];
+    }
+
+    const products = data.data?.products?.edges || [];
+    return products.map((edge: any) => ({
+      id: edge.node.id,
+      title: edge.node.title,
+      handle: edge.node.handle,
+      description: edge.node.description || "",
+      images: edge.node.images.edges.map((img: any) => ({
+        url: img.node.url,
+        altText: img.node.altText,
+      })),
+      variants: edge.node.variants.edges.map((v: any) => ({
+        id: v.node.id,
+        title: v.node.title,
+        price: v.node.price?.amount || "0",
+        availableForSale: v.node.availableForSale,
+      })),
+    }));
+  } catch (error) {
+    console.error("Error searching Shopify products:", error);
     return [];
   }
+}
+
+/**
+ * Fallback: Search products using Admin API (without currency context)
+ */
+async function searchShopifyProductsAdmin(query: string, limit: number = 20): Promise<Array<{
+  id: string;
+  title: string;
+  handle: string;
+  description: string;
+  images: Array<{ url: string; altText: string | null }>;
+  variants: Array<{
+    id: string;
+    title: string;
+    price: string;
+    availableForSale: boolean;
+  }>;
+}>> {
+  const config = getShopifyConfig();
+  const { SHOPIFY_STORE, SHOPIFY_ACCESS_TOKEN, SHOPIFY_GRAPHQL_ENDPOINT, SHOPIFY_API_URL } = config;
 
   try {
     const searchQuery = `
@@ -502,7 +645,7 @@ export async function searchShopifyProducts(query: string, limit: number = 20): 
       })),
     }));
   } catch (error) {
-    console.error("Error searching Shopify products:", error);
+    console.error("Error searching Shopify products (Admin API fallback):", error);
     return [];
   }
 }
