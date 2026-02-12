@@ -2472,7 +2472,6 @@ export function createRouter(io?: Server) {
           actualPrice: z.number().optional().nullable(),
           discountPercentage: z.number().optional().nullable(),
           discountedPrice: z.number().optional().nullable(),
-          askExpertContent: z.string().optional().nullable(),
         })
         .parse(req.body);
 
@@ -2541,7 +2540,6 @@ export function createRouter(io?: Server) {
         actualPrice: body.actualPrice !== undefined && body.actualPrice !== null ? parseFloat(String(body.actualPrice)) : null,
         discountPercentage: body.discountPercentage !== undefined && body.discountPercentage !== null ? parseFloat(String(body.discountPercentage)) : null,
         discountedPrice: body.discountedPrice !== undefined && body.discountedPrice !== null ? parseFloat(String(body.discountedPrice)) : null,
-        askExpertContent: body.askExpertContent && body.askExpertContent.trim() !== "" ? body.askExpertContent.trim() : null,
       };
 
       const exhibit = await prisma.exhibitItem.create({
@@ -3117,6 +3115,7 @@ export function createRouter(io?: Server) {
           heroText: z.string().optional(),
           heroImage: z.string().optional(),
           themeConfig: z.any().optional(),
+          askExpertContent: z.string().optional().nullable(),
         })
         .parse(req.body);
       const event = await prisma.event.update({
@@ -3129,6 +3128,7 @@ export function createRouter(io?: Server) {
           heroText: body.heroText,
           heroImage: body.heroImage,
           themeConfig: body.themeConfig,
+          askExpertContent: body.askExpertContent !== undefined ? (body.askExpertContent && body.askExpertContent.trim() !== "" ? body.askExpertContent.trim() : null) : undefined,
         },
       });
       res.json(event);
@@ -3161,7 +3161,6 @@ export function createRouter(io?: Server) {
           actualPrice: z.number().optional().nullable(),
           discountPercentage: z.number().optional().nullable(),
           discountedPrice: z.number().optional().nullable(),
-          askExpertContent: z.string().optional().nullable(),
         })
         .parse(req.body);
       
@@ -3226,7 +3225,6 @@ export function createRouter(io?: Server) {
       if (body.actualPrice !== undefined) updateData.actualPrice = body.actualPrice !== null ? parseFloat(String(body.actualPrice)) : null;
       if (body.discountPercentage !== undefined) updateData.discountPercentage = body.discountPercentage !== null ? parseFloat(String(body.discountPercentage)) : null;
       if (body.discountedPrice !== undefined) updateData.discountedPrice = body.discountedPrice !== null ? parseFloat(String(body.discountedPrice)) : null;
-      if (body.askExpertContent !== undefined) updateData.askExpertContent = body.askExpertContent && body.askExpertContent.trim() !== "" ? body.askExpertContent.trim() : null;
 
       const exhibit = await prisma.exhibitItem.update({
         where: { id: req.params.id },

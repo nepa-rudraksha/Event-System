@@ -7,15 +7,15 @@ import {
   PrimaryButton,
 } from "../components/ui";
 import { MessageIcon } from "../components/Icons";
-import { fetchExhibits, api } from "../lib/api";
+import { fetchEvent } from "../lib/api";
 import { getSession } from "../lib/session";
-import type { ExhibitItem } from "../lib/types";
+import type { EventInfo } from "../lib/types";
 
 export default function AskExpert() {
-  const { slug = "bangalore", id } = useParams();
+  const { slug = "bangalore" } = useParams();
   const navigate = useNavigate();
   const session = getSession();
-  const [item, setItem] = useState<ExhibitItem | null>(null);
+  const [event, setEvent] = useState<EventInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,30 +24,20 @@ export default function AskExpert() {
       return;
     }
 
-    if (!id) {
-      navigate(`/e/${slug}/dashboard`);
-      return;
-    }
-
-    const loadItem = async () => {
+    const loadEvent = async () => {
       try {
-        const exhibits = await fetchExhibits(slug);
-        const found = exhibits.find((e: ExhibitItem) => e.id === id);
-        if (found) {
-          setItem(found);
-        } else {
-          navigate(`/e/${slug}/dashboard`);
-        }
+        const eventData = await fetchEvent(slug);
+        setEvent(eventData);
       } catch (err) {
-        console.error("Failed to load exhibit:", err);
+        console.error("Failed to load event:", err);
         navigate(`/e/${slug}/dashboard`);
       } finally {
         setLoading(false);
       }
     };
 
-    loadItem();
-  }, [id, slug, session, navigate]);
+    loadEvent();
+  }, [slug, session, navigate]);
 
   if (loading) {
     return (
@@ -60,12 +50,12 @@ export default function AskExpert() {
     );
   }
 
-  if (!item) {
+  if (!event) {
     return (
       <AppShell>
         <AppBar title="Ask Expert" />
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-body text-textMedium">Product not found</div>
+          <div className="text-body text-textMedium">Event not found</div>
         </div>
       </AppShell>
     );
@@ -77,13 +67,13 @@ export default function AskExpert() {
       <div className="space-y-4">
         <SectionCard>
           <div className="mb-4">
-            <h1 className="text-title text-textDark mb-2">{item.name}</h1>
+            <h1 className="text-title text-textDark mb-2">Ask Our Expert</h1>
             <p className="text-body text-textMedium">
-              Get expert guidance about this product
+              Get expert guidance about our products
             </p>
           </div>
 
-          {item.askExpertContent ? (
+          {event.askExpertContent ? (
             <div
               className="text-body text-textMedium leading-relaxed
                 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:text-textDark [&_h1]:mb-4 [&_h1]:mt-6
@@ -101,7 +91,7 @@ export default function AskExpert() {
                 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:my-4
                 [&_code]:bg-cream [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono
                 [&_pre]:bg-cream [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-4"
-              dangerouslySetInnerHTML={{ __html: item.askExpertContent }}
+              dangerouslySetInnerHTML={{ __html: event.askExpertContent }}
             />
           ) : (
             <div className="text-body text-textMedium text-center py-8">

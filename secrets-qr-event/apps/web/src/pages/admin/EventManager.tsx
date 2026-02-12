@@ -4,6 +4,7 @@ import { SectionCard, PrimaryButton, Field, Input, GhostButton } from "../../com
 import { AdminNav } from "../../components/AdminNav";
 import { getAdminToken } from "../../lib/adminSession";
 import { api } from "../../lib/api";
+import { RichTextEditor } from "../../components/RichTextEditor";
 
 export default function EventManager() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -16,6 +17,7 @@ export default function EventManager() {
     endTime: "",
     heroText: "",
     heroImage: "",
+    askExpertContent: "",
   });
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function EventManager() {
         endTime: res.data.endTime ? new Date(res.data.endTime).toISOString().slice(0, 16) : "",
         heroText: res.data.heroText || "",
         heroImage: res.data.heroImage || "",
+        askExpertContent: res.data.askExpertContent || "",
       });
     } catch (err: any) {
       console.error("Failed to load event:", err);
@@ -140,6 +143,21 @@ export default function EventManager() {
               />
             </Field>
           </div>
+        </SectionCard>
+
+        <SectionCard>
+          <h2 className="text-heading text-textDark mb-4">Ask Expert Page Content</h2>
+          <p className="text-body text-textLight mb-4">
+            This content will be displayed on the "Ask Expert" page when visitors click the button from any product. 
+            All products share the same Ask Expert page with this content.
+          </p>
+          <Field label="Rich Text Content">
+            <RichTextEditor
+              value={formData.askExpertContent}
+              onChange={(v) => setFormData({ ...formData, askExpertContent: v })}
+              placeholder="Enter content that will be displayed when visitors click 'Ask Expert'..."
+            />
+          </Field>
         </SectionCard>
 
         <div className="flex gap-3">

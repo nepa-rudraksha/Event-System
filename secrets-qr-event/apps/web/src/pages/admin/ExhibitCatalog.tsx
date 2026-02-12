@@ -4,7 +4,6 @@ import { SectionCard, PrimaryButton, Field, Input, GhostButton, Chip } from "../
 import { AdminNav } from "../../components/AdminNav";
 import { getAdminToken } from "../../lib/adminSession";
 import { api } from "../../lib/api";
-import { RichTextEditor } from "../../components/RichTextEditor";
 
 export default function ExhibitCatalog() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -368,20 +367,6 @@ export default function ExhibitCatalog() {
                 </div>
               </div>
 
-              {/* Ask Expert Content */}
-              <div className="pt-4 border-t border-creamDark">
-                <Field label="Ask Expert Page Content (Rich Text)">
-                  <RichTextEditor
-                    value={formData.askExpertContent || ""}
-                    onChange={(v) => setFormData({ ...formData, askExpertContent: v })}
-                    placeholder="Enter content that will be displayed when visitors click 'Ask Expert'..."
-                  />
-                  <p className="text-xs text-textLight mt-2">
-                    This content will be shown on a dedicated page when visitors click the "Ask Expert" button.
-                  </p>
-                </Field>
-              </div>
-
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -441,7 +426,6 @@ export default function ExhibitCatalog() {
                           actualPrice: exhibit.actualPrice || null,
                           discountPercentage: exhibit.discountPercentage || null,
                           discountedPrice: exhibit.discountedPrice || null,
-                          askExpertContent: exhibit.askExpertContent || "",
                         };
                         setFormData(editData);
                         setEditing(exhibit.id);

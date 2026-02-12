@@ -8,6 +8,7 @@ export type EventInfo = {
   heroText?: string | null;
   heroImage?: string | null;
   themeConfig?: Record<string, unknown> | null;
+  askExpertContent?: string | null;
 };
 
 export type Announcement = {
@@ -46,7 +47,6 @@ export type ExhibitItem = {
   actualPrice?: number | null;
   discountPercentage?: number | null;
   discountedPrice?: number | null;
-  askExpertContent?: string | null;
 };
 
 export type Visitor = {
