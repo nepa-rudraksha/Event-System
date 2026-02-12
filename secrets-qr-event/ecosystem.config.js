@@ -5,11 +5,11 @@ module.exports = {
   apps: [
     {
       name: 'event-backend',
-      script: 'tsx',
+      script: path.join(__dirname, 'server', 'node_modules', '.bin', 'tsx'),
       args: 'src/main.ts',
       cwd: path.join(__dirname, 'server'),
-      instances: 2,
-      exec_mode: 'cluster',
+      instances: 1, // Using fork mode for better compatibility
+      exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
         PORT: 8080,
