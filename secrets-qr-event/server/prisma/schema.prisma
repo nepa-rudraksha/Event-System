@@ -279,7 +279,7 @@ model Order {
   paymentId      String? // External payment ID
   orderStatus    String @default("pending") // pending/processing/completed/cancelled
   totalAmount    Float?
-  currency       String @default("USD")
+  currency       String @default("INR")
   
   items          Json? // Order items with product details
   processedBy    String? // Sales agent who processed

@@ -13,7 +13,7 @@ import VariantSelector from "../components/VariantSelector";
 import { MessageIcon } from "../components/Icons";
 import { KundaliChart } from "../components/KundaliChart";
 import { NavamsaChart } from "../components/NavamsaChart";
-import { fetchConsultation, lockRecommendations, updateConsultationNotes, generateAstrologyReport, fetchOrderHistory, createDraftOrder, sendWhatsAppNotification } from "../lib/api";
+import { fetchConsultation, lockRecommendations, updateConsultationNotes, generateAstrologyReport, fetchOrderHistory, createDraftOrder, sendWhatsAppNotification, searchShopifyProducts } from "../lib/api";
 import { getAdminEventId } from "../lib/adminSession";
 
 type RecommendationDraft = {
@@ -82,6 +82,17 @@ export default function ExpertWorkspace() {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [newProductJson, setNewProductJson] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  
+  // Discount state
+  const [discountType, setDiscountType] = useState<"PERCENTAGE" | "FIXED_AMOUNT" | null>(null);
+  const [discountValue, setDiscountValue] = useState("");
+  const [discountTitle, setDiscountTitle] = useState("");
+  
+  // Product search state
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (!consultationId) return;
@@ -397,7 +408,7 @@ export default function ExpertWorkspace() {
           quantity: 1,
           priority: 1,
           reason: accessory.name,
-          notes: `Accessory - $${accessory.cost}`,
+          notes: `Accessory - ₹${accessory.cost}`,
           mappedShopifyVariantId: accessory.variantId,
           isAccessory: true,
         },
@@ -425,7 +436,7 @@ export default function ExpertWorkspace() {
           quantity: 1,
           priority: 1,
           reason: pooja.name,
-          notes: `Pooja/Energization - $${pooja.cost}`,
+          notes: `Pooja/Energization - ₹${pooja.cost}`,
           mappedShopifyVariantId: pooja.variantId,
           isPooja: true,
         },
@@ -587,10 +598,20 @@ export default function ExpertWorkspace() {
         return;
       }
 
+      // Prepare discount if provided
+      const discount = discountType && discountValue
+        ? {
+            type: discountType,
+            value: parseFloat(discountValue),
+            title: discountTitle || undefined,
+          }
+        : undefined;
+
       // Create draft order in Shopify
       const draftOrder = await createDraftOrder(consultationId, {
         lineItems,
         note: `Draft order for consultation - ${consultation?.visitor?.name || "Customer"}`,
+        discount,
       });
 
       setDraftOrderUrl(draftOrder.checkoutUrl);
@@ -1462,6 +1483,83 @@ export default function ExpertWorkspace() {
             )}
           </div>
 
+          {/* Search Products from Shopify */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-heading text-textDark">Search Products from Shopify</h3>
+              <GhostButton onClick={() => setShowProductSearch(!showProductSearch)}>
+                {showProductSearch ? "Hide Search" : "Search Products"}
+              </GhostButton>
+            </div>
+            
+            {showProductSearch && (
+              <div className="rounded-lg border-2 border-creamDark bg-white p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Input
+                    value={searchQuery}
+                    onChange={(v) => setSearchQuery(v)}
+                    placeholder="Search products by name or description..."
+                    className="flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && searchQuery.trim()) {
+                        handleSearchProducts();
+                      }
+                    }}
+                  />
+                  <PrimaryButton onClick={handleSearchProducts} disabled={searching || !searchQuery.trim()}>
+                    {searching ? "Searching..." : "Search"}
+                  </PrimaryButton>
+                </div>
+
+                {searchResults.length > 0 && (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {searchResults.map((product) => (
+                      <div
+                        key={product.id}
+                        className="p-3 rounded-lg border border-creamDark bg-cream hover:bg-creamDark transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          {product.images && product.images.length > 0 && (
+                            <img
+                              src={product.images[0].url}
+                              alt={product.images[0].altText || product.title}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm text-textDark mb-1">{product.title}</div>
+                            {product.description && (
+                              <div className="text-xs text-textMedium mb-2 line-clamp-2">
+                                {product.description}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {product.variants.map((variant: any) => (
+                                <PrimaryButton
+                                  key={variant.id}
+                                  onClick={() => addProductFromSearch(product, variant)}
+                                  className="text-xs px-2 py-1"
+                                  disabled={!variant.availableForSale}
+                                >
+                                  {variant.title} - ₹{variant.price}
+                                  {!variant.availableForSale && " (Out of Stock)"}
+                                </PrimaryButton>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {searchResults.length === 0 && searchQuery && !searching && (
+                  <p className="text-body text-textLight text-center py-4">No products found</p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Add Accessories and Pooja Section */}
           <div className="mt-6 space-y-4">
             {/* Accessories */}
@@ -1479,7 +1577,7 @@ export default function ExpertWorkspace() {
                     >
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-textDark">{accessory.name}</div>
-                        <div className="text-xs text-textMedium">${accessory.cost} each</div>
+                        <div className="text-xs text-textMedium">₹{accessory.cost} each</div>
                       </div>
                       <div className="flex items-center gap-2">
                         {existingItem && (
@@ -1513,7 +1611,7 @@ export default function ExpertWorkspace() {
                     >
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-textDark">{pooja.name}</div>
-                        <div className="text-xs text-textMedium">${pooja.cost} each</div>
+                        <div className="text-xs text-textMedium">₹{pooja.cost} each</div>
                       </div>
                       <div className="flex items-center gap-2">
                         {existingItem && (
@@ -1547,7 +1645,7 @@ export default function ExpertWorkspace() {
                 <div className="flex justify-between items-center">
                   <span className="text-body text-textMedium">Total Amount:</span>
                   <span className="text-heading font-bold text-gold">
-                    ${calculateTotalAmount().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₹{calculateTotalAmount().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
                 {generateCombinedCheckoutLink() && (
@@ -1571,6 +1669,68 @@ export default function ExpertWorkspace() {
               </div>
             </div>
           )}
+        </SectionCard>
+
+        {/* Discount Section */}
+        <SectionCard>
+          <h3 className="text-heading text-textDark mb-3">Discount (Optional)</h3>
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={discountType === "PERCENTAGE"}
+                  onChange={() => setDiscountType("PERCENTAGE")}
+                  className="text-gold"
+                />
+                <span className="text-sm text-textDark">Percentage</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={discountType === "FIXED_AMOUNT"}
+                  onChange={() => setDiscountType("FIXED_AMOUNT")}
+                  className="text-gold"
+                />
+                <span className="text-sm text-textDark">Fixed Amount (INR)</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={discountType === null}
+                  onChange={() => {
+                    setDiscountType(null);
+                    setDiscountValue("");
+                    setDiscountTitle("");
+                  }}
+                  className="text-gold"
+                />
+                <span className="text-sm text-textDark">No Discount</span>
+              </label>
+            </div>
+            {discountType && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={discountValue}
+                    onChange={(v) => setDiscountValue(v)}
+                    placeholder={discountType === "PERCENTAGE" ? "10" : "100"}
+                    className="w-32"
+                  />
+                  <span className="text-sm text-textMedium">
+                    {discountType === "PERCENTAGE" ? "%" : "INR"}
+                  </span>
+                </div>
+                <Input
+                  value={discountTitle}
+                  onChange={(v) => setDiscountTitle(v)}
+                  placeholder="Discount title (optional)"
+                  className="w-full"
+                />
+              </div>
+            )}
+          </div>
         </SectionCard>
 
         <div className="flex gap-3">
@@ -1661,7 +1821,7 @@ export default function ExpertWorkspace() {
                                   {order.lineItems.edges.map((edge: any, itemIdx: number) => (
                                     <div key={itemIdx} className="text-sm text-textMedium">
                                       • {edge.node.title} (Qty: {edge.node.quantity})
-                                      {edge.node.variant?.price && ` - $${edge.node.variant.price}`}
+                                      {edge.node.variant?.price && ` - ₹${edge.node.variant.price}`}
                                     </div>
                                   ))}
                                 </div>

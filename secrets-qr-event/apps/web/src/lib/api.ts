@@ -180,10 +180,22 @@ export async function createDraftOrder(
       customAttributes?: Array<{ key: string; value: string }>;
     }>;
     note?: string;
+    discount?: {
+      type: "PERCENTAGE" | "FIXED_AMOUNT";
+      value: number;
+      title?: string;
+    };
   }
 ) {
   const { data } = await api.post(`/consultations/${consultationId}/draft-order`, payload);
   return data;
+}
+
+export async function searchShopifyProducts(query: string, limit: number = 20) {
+  const { data } = await api.get(`/shopify/products/search`, {
+    params: { q: query, limit },
+  });
+  return data.products;
 }
 
 export async function fetchShopifyOrdersByEmail(email: string) {

@@ -9,7 +9,7 @@ import { createOtp, peekOtp, verifyOtp } from "./lib/otpStore.js";
 import { broadcastEvent } from "./realtime/socket.js";
 import { requireAuth, requireRole, signToken } from "./lib/auth.js";
 import { geocodePlace } from "./lib/geocode.js";
-import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct } from "./shopify.js";
+import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct, searchShopifyProducts } from "./shopify.js";
 
 const phoneSchema = z.string().min(6).max(20);
 const emailSchema = z.string().email();
@@ -669,6 +669,30 @@ export function createRouter(io?: Server) {
       } catch (error: any) {
         console.error("Error fetching product handle:", error);
         res.status(500).json({ error: "Failed to fetch product handle" });
+      }
+    })
+  );
+
+  // Search Shopify products
+  router.get(
+    "/shopify/products/search",
+    requireAuth,
+    requireRole(["EXPERT", "ADMIN", "SALES"]),
+    asyncHandler(async (req, res) => {
+      const query = req.query.q as string;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      
+      if (!query || query.trim().length === 0) {
+        res.status(400).json({ error: "Search query is required" });
+        return;
+      }
+
+      try {
+        const products = await searchShopifyProducts(query.trim(), limit);
+        res.json({ products });
+      } catch (error: any) {
+        console.error("Error searching Shopify products:", error);
+        res.status(500).json({ error: "Failed to search products" });
       }
     })
   );
@@ -1379,6 +1403,11 @@ export function createRouter(io?: Server) {
             })
           ),
           note: z.string().optional(),
+          discount: z.object({
+            type: z.enum(["PERCENTAGE", "FIXED_AMOUNT"]),
+            value: z.number().min(0),
+            title: z.string().optional(),
+          }).optional(),
         })
         .parse(req.body);
 
@@ -1396,7 +1425,8 @@ export function createRouter(io?: Server) {
       const draftOrder = await createShopifyDraftOrder(
         consultation.visitor.email,
         body.lineItems,
-        body.note || `Draft order for consultation ${consultation.id}`
+        body.note || `Draft order for consultation ${consultation.id}`,
+        body.discount
       );
 
       if (!draftOrder) {
@@ -1442,7 +1472,7 @@ export function createRouter(io?: Server) {
           paymentId: z.string().optional(),
           paymentStatus: z.enum(["pending", "paid", "failed"]).default("pending"),
           totalAmount: z.number().optional(),
-          currency: z.string().default("USD"),
+          currency: z.string().default("INR"),
           items: z.any().optional(),
           shopifyOrderId: z.string().optional(),
           shopifyDraftId: z.string().optional(),

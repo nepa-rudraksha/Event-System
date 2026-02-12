@@ -148,7 +148,7 @@ export default function SalesDesk() {
         paymentId,
         paymentStatus: "paid",
         totalAmount: finalAmount,
-        currency: "USD",
+        currency: "INR",
         items: consultation?.recommendations || [],
       });
       alert("Order created successfully! Payment marked as completed.");
@@ -310,7 +310,7 @@ export default function SalesDesk() {
                                 />
                               </div>
                               <div>
-                                <label className="text-xs text-textMedium mb-1 block">Amount (USD)</label>
+                                <label className="text-xs text-textMedium mb-1 block">Amount (INR)</label>
                                 <Input
                                   value={totalAmount || calculateTotalFromRecommendations(consultation).toFixed(2)}
                                   onChange={setTotalAmount}

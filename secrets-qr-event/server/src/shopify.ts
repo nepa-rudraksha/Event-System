@@ -202,7 +202,12 @@ export async function createShopifyDraftOrder(
     quantity: number;
     customAttributes?: Array<{ key: string; value: string }>;
   }>,
-  note?: string
+  note?: string,
+  discount?: {
+    type: "PERCENTAGE" | "FIXED_AMOUNT";
+    value: number;
+    title?: string;
+  }
 ): Promise<{ draftOrderId: string; checkoutUrl: string } | null> {
   const config = getShopifyConfig();
   const { SHOPIFY_STORE, SHOPIFY_ACCESS_TOKEN, SHOPIFY_GRAPHQL_ENDPOINT, SHOPIFY_API_URL } = config;
@@ -238,17 +243,34 @@ export async function createShopifyDraftOrder(
       }
     `;
 
-    const variables = {
-      input: {
-        email,
-        lineItems: lineItems.map((item) => ({
-          variantId: item.variantId,
-          quantity: item.quantity,
-          customAttributes: item.customAttributes || [],
-        })),
-        note: note || "Created from Expert Consultation",
-      },
+    const input: any = {
+      email,
+      lineItems: lineItems.map((item) => ({
+        variantId: item.variantId,
+        quantity: item.quantity,
+        customAttributes: item.customAttributes || [],
+      })),
+      note: note || "Created from Expert Consultation",
     };
+
+    // Add discount if provided
+    if (discount) {
+      if (discount.type === "PERCENTAGE") {
+        input.appliedDiscount = {
+          description: discount.title || "Discount",
+          value: discount.value,
+          valueType: "PERCENTAGE",
+        };
+      } else if (discount.type === "FIXED_AMOUNT") {
+        input.appliedDiscount = {
+          description: discount.title || "Discount",
+          value: discount.value,
+          valueType: "FIXED_AMOUNT",
+        };
+      }
+    }
+
+    const variables = { input };
 
     const graphqlUrl = SHOPIFY_GRAPHQL_ENDPOINT || `${SHOPIFY_API_URL}/graphql.json`;
     const response = await fetch(graphqlUrl, {
@@ -373,6 +395,115 @@ export async function fetchShopifyProduct(productId: string): Promise<{ descript
   } catch (error) {
     console.error("Error fetching Shopify product:", error);
     return null;
+  }
+}
+
+/**
+ * Search products in Shopify
+ */
+export async function searchShopifyProducts(query: string, limit: number = 20): Promise<Array<{
+  id: string;
+  title: string;
+  handle: string;
+  description: string;
+  images: Array<{ url: string; altText: string | null }>;
+  variants: Array<{
+    id: string;
+    title: string;
+    price: string;
+    availableForSale: boolean;
+  }>;
+}>> {
+  const config = getShopifyConfig();
+  const { SHOPIFY_STORE, SHOPIFY_ACCESS_TOKEN, SHOPIFY_GRAPHQL_ENDPOINT, SHOPIFY_API_URL } = config;
+  
+  if (!SHOPIFY_STORE || !SHOPIFY_ACCESS_TOKEN) {
+    console.warn("Shopify credentials not configured");
+    return [];
+  }
+
+  try {
+    const searchQuery = `
+      query SearchProducts($query: String!, $first: Int!) {
+        products(first: $first, query: $query) {
+          edges {
+            node {
+              id
+              title
+              handle
+              description
+              images(first: 3) {
+                edges {
+                  node {
+                    url
+                    altText
+                  }
+                }
+              }
+              variants(first: 10) {
+                edges {
+                  node {
+                    id
+                    title
+                    price
+                    availableForSale
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      query: `title:*${query}* OR description:*${query}*`,
+      first: limit,
+    };
+
+    const graphqlUrl = SHOPIFY_GRAPHQL_ENDPOINT || `${SHOPIFY_API_URL}/graphql.json`;
+    
+    const response = await fetch(graphqlUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({ query: searchQuery, variables }),
+    });
+
+    if (!response.ok) {
+      console.error("Shopify API error searching products:", response.statusText);
+      return [];
+    }
+
+    const data = await response.json();
+
+    if (data.errors) {
+      console.error("Shopify GraphQL errors searching products:", JSON.stringify(data.errors, null, 2));
+      return [];
+    }
+
+    const products = data.data?.products?.edges || [];
+    return products.map((edge: any) => ({
+      id: edge.node.id,
+      title: edge.node.title,
+      handle: edge.node.handle,
+      description: edge.node.description || "",
+      images: edge.node.images.edges.map((img: any) => ({
+        url: img.node.url,
+        altText: img.node.altText,
+      })),
+      variants: edge.node.variants.edges.map((v: any) => ({
+        id: v.node.id,
+        title: v.node.title,
+        price: v.node.price,
+        availableForSale: v.node.availableForSale,
+      })),
+    }));
+  } catch (error) {
+    console.error("Error searching Shopify products:", error);
+    return [];
   }
 }
 
