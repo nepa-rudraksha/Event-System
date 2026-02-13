@@ -402,7 +402,9 @@ export default function SalesDesk() {
                                     const draftOrderId = draftOrderDetails[consultation.id].draftOrderId;
                                     setSendingInvoice({ ...sendingInvoice, [consultation.id]: true });
                                     try {
-                                      await api.post(`/draft-orders/${draftOrderId}/send-invoice`);
+                                      // URL-encode the draft order ID to handle GID format with special characters
+                                      const encodedDraftOrderId = encodeURIComponent(draftOrderId);
+                                      await api.post(`/draft-orders/${encodedDraftOrderId}/send-invoice`);
                                       alert("Invoice email sent successfully to customer!");
                                       loadData();
                                     } catch (err: any) {

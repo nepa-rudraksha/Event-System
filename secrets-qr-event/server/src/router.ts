@@ -1518,7 +1518,8 @@ export function createRouter(io?: Server) {
     requireAuth,
     requireRole(["EXPERT", "ADMIN", "SALES"]),
     asyncHandler(async (req, res) => {
-      const { draftOrderId } = req.params;
+      // URL-decode the draft order ID since it's URL-encoded in the path
+      const draftOrderId = decodeURIComponent(req.params.draftOrderId);
       
       try {
         await sendDraftOrderInvoice(draftOrderId);
