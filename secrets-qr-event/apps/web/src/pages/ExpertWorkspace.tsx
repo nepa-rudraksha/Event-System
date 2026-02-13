@@ -722,9 +722,14 @@ export default function ExpertWorkspace() {
         })),
       });
 
-      // Reload consultation
-      const updated = await fetchConsultation(consultationId);
-      setConsultation(updated);
+      // Reload consultation again to get updated recommendations
+      const updatedConsultation = await fetchConsultation(consultationId);
+      setConsultation(updatedConsultation);
+      
+      // If consultation has draft order details, set them
+      if (updatedConsultation.draftOrderDetails) {
+        setDraftOrderDetails(updatedConsultation.draftOrderDetails);
+      }
     } catch (err: any) {
       alert(err.response?.data?.error || "Failed to create draft order");
     } finally {

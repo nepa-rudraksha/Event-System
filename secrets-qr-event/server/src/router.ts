@@ -2315,11 +2315,32 @@ export function createRouter(io?: Server) {
         recs.sort((a, b) => a.priority - b.priority);
       });
 
-      // Combine consultations with their recommendations
-      const consultationsWithRecommendations = consultations.map((consultation) => ({
-        ...consultation,
-        recommendations: recommendationsByConsultation.get(consultation.id) || [],
-      }));
+      // Fetch draft order details for consultations that have draft orders
+      const consultationsWithRecommendations = await Promise.all(
+        consultations.map(async (consultation) => {
+          let draftOrderDetails = null;
+          if (consultation.salesAssist?.checkoutLink) {
+            try {
+              // Extract draft order ID from salesAssist notes
+              const notes = consultation.salesAssist.salesNotes || "";
+              const draftOrderIdMatch = notes.match(/Draft Order ID:\s*(gid:\/\/shopify\/DraftOrder\/\d+)/i);
+              if (draftOrderIdMatch) {
+                const draftOrderGid = draftOrderIdMatch[1];
+                draftOrderDetails = await getShopifyDraftOrder(draftOrderGid);
+              }
+            } catch (err) {
+              console.error(`Error fetching draft order for consultation ${consultation.id}:`, err);
+              // Continue without draft order details
+            }
+          }
+
+          return {
+            ...consultation,
+            recommendations: recommendationsByConsultation.get(consultation.id) || [],
+            draftOrderDetails, // Include draft order details if available
+          };
+        })
+      );
 
       res.json(consultationsWithRecommendations);
     })
