@@ -66,16 +66,10 @@ export default function Dashboard() {
           Scan QR Code to View Product
         </PrimaryButton>
         <Link 
-          to={`/e/${slug}/exhibits/rudraksha`} 
+          to={`/e/${slug}/exhibits`} 
           className="rounded-xl border-2 border-creamDark bg-white px-5 py-4 text-center text-base font-semibold text-textDark shadow-soft transition-all hover:bg-cream active:scale-[0.98]"
         >
-          View Rare Rudraksha
-        </Link>
-        <Link 
-          to={`/e/${slug}/exhibits/shaligram`} 
-          className="rounded-xl border-2 border-creamDark bg-white px-5 py-4 text-center text-base font-semibold text-textDark shadow-soft transition-all hover:bg-cream active:scale-[0.98]"
-        >
-          View Rare Shaligram
+          View Products
         </Link>
       </div>
 

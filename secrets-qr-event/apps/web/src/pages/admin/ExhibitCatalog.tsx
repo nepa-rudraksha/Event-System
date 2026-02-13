@@ -120,7 +120,7 @@ export default function ExhibitCatalog() {
 
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {["all", "rudraksha", "shaligram", "book", "bracelet"].map((t) => (
+            {["all", "rudraksha", "shaligram", "mala", "combination", "bracelet", "kanthamala"].map((t) => (
               <button
                 key={t}
                 onClick={() => setFilter(t)}
@@ -130,7 +130,7 @@ export default function ExhibitCatalog() {
                     : "border-2 border-creamDark bg-white text-textMedium"
                 }`}
               >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+                {t === "all" ? "All" : t === "mala" ? "Siddha Mala" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
           </div>
@@ -156,9 +156,10 @@ export default function ExhibitCatalog() {
                 >
                   <option value="rudraksha">Rudraksha</option>
                   <option value="shaligram">Shaligram</option>
-                  <option value="book">Book</option>
+                  <option value="mala">Siddha Mala</option>
+                  <option value="combination">Combination</option>
                   <option value="bracelet">Bracelet</option>
-                  <option value="mala">Mala</option>
+                  <option value="kanthamala">Kanthamala</option>
                 </select>
               </Field>
               <Field label="Name" required>

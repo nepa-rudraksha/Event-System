@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Itinerary from "./pages/Itinerary";
 import ConsultationBooking from "./pages/ConsultationBooking";
 import ConsultationDetails from "./pages/ConsultationDetails";
+import ExhibitCategories from "./pages/ExhibitCategories";
 import ExhibitList from "./pages/ExhibitList";
 import ExhibitDetail from "./pages/ExhibitDetail";
 import AskExpert from "./pages/AskExpert";
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/e/:slug/itinerary" element={<Itinerary />} />
         <Route path="/e/:slug/consultation" element={<ConsultationBooking />} />
         <Route path="/e/:slug/consultation/details" element={<ConsultationDetails />} />
+        <Route path="/e/:slug/exhibits" element={<ExhibitCategories />} />
         <Route path="/e/:slug/exhibits/:type" element={<ExhibitList />} />
         <Route path="/e/:slug/exhibits/:type/:id" element={<ExhibitDetail />} />
         <Route path="/e/:slug/exhibits/:type/:id/ask-expert" element={<AskExpert />} />

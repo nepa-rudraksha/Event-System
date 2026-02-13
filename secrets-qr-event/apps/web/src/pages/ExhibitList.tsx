@@ -6,16 +6,15 @@ import { fetchExhibits } from "../lib/api";
 import { getSession } from "../lib/session";
 import type { ExhibitItem } from "../lib/types";
 
-const rudrakshaFilters = [
-  "All",
-  "Museum Grade",
-  "1 Mukhi",
-  "21 Mukhi",
-  "22-27 Mukhi",
-  "Kantha",
-  "Nirakar",
-  "Siddha Mala",
-];
+// Category display names mapping
+const categoryNames: Record<string, string> = {
+  rudraksha: "Rudraksha",
+  shaligram: "Shaligram",
+  mala: "Siddha Mala",
+  combination: "Combination",
+  bracelet: "Bracelet",
+  kanthamala: "Kanthamala",
+};
 
 export default function ExhibitList() {
   const { slug = "bangalore", type = "rudraksha" } = useParams();
@@ -23,38 +22,73 @@ export default function ExhibitList() {
   const session = getSession();
   const [items, setItems] = useState<ExhibitItem[]>([]);
   const [filter, setFilter] = useState("All");
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (!session) {
       navigate(`/e/${slug}`);
       return;
     }
-    fetchExhibits(session.eventId, type).then(setItems).catch(() => setItems([]));
+    fetchExhibits(session.eventId, type)
+      .then((exhibits) => {
+        setItems(exhibits);
+        // Extract all unique tags from visible items
+        const allTags = new Set<string>();
+        exhibits.forEach((item: ExhibitItem) => {
+          if (item.tags && Array.isArray(item.tags)) {
+            item.tags.forEach((tag: string) => {
+              if (tag && tag.trim()) {
+                allTags.add(tag.trim());
+              }
+            });
+          }
+        });
+        setAvailableTags(Array.from(allTags).sort());
+      })
+      .catch(() => {
+        setItems([]);
+        setAvailableTags([]);
+      });
   }, [navigate, session, slug, type]);
 
   const filteredItems = useMemo(() => {
     if (filter === "All") return items;
-    return items.filter((item) => item.tags?.includes(filter));
+    return items.filter((item) => {
+      if (!item.tags || !Array.isArray(item.tags)) return false;
+      return item.tags.some((tag: string) => tag.trim() === filter);
+    });
   }, [filter, items]);
+
+  const categoryName = categoryNames[type.toLowerCase()] || type;
 
   return (
     <AppShell>
-      <AppBar title={type === "shaligram" ? "Rare Shaligram" : "Rare Rudraksha"} />
+      <AppBar title={categoryName} />
       
-      {type === "rudraksha" && (
+      {availableTags.length > 0 && (
         <div className="mb-6">
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {rudrakshaFilters.map((item) => (
+            <button
+              onClick={() => setFilter("All")}
+              className={`rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-all ${
+                filter === "All"
+                  ? "bg-gold text-white shadow-medium"
+                  : "border-2 border-creamDark bg-white text-textMedium hover:border-gold"
+              }`}
+            >
+              All
+            </button>
+            {availableTags.map((tag) => (
               <button
-                key={item}
-                onClick={() => setFilter(item)}
+                key={tag}
+                onClick={() => setFilter(tag)}
                 className={`rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-all ${
-                  filter === item
+                  filter === tag
                     ? "bg-gold text-white shadow-medium"
                     : "border-2 border-creamDark bg-white text-textMedium hover:border-gold"
                 }`}
               >
-                {item}
+                {tag}
               </button>
             ))}
           </div>
