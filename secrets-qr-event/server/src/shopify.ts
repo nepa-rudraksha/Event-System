@@ -354,11 +354,11 @@ export async function createShopifyDraftOrder(
 
     const input: any = {
       email,
-      lineItems: lineItems.map((item) => ({
+      lineItems: lineItems.length > 0 ? lineItems.map((item) => ({
         variantId: item.variantId,
         quantity: item.quantity,
         customAttributes: item.customAttributes || [],
-      })),
+      })) : [], // Allow empty lineItems for draft orders that can be filled later
       note: note || "Created from Expert Consultation",
       // Set presentment currency to INR
       presentmentCurrencyCode: "INR",

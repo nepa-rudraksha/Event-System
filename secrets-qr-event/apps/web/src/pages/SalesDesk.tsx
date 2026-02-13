@@ -432,7 +432,7 @@ export default function SalesDesk() {
                         )}
                         
                         {/* Create Draft Order Button - Show if no draft order exists */}
-                        {!consultation.salesAssist?.checkoutLink && consultation.recommendations && consultation.recommendations.length > 0 && (
+                        {!consultation.salesAssist?.checkoutLink && (
                           <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 mb-3">
                             <p className="text-xs font-semibold text-textDark mb-2">Create Draft Order (For Online Checkout):</p>
                             <PrimaryButton
@@ -440,24 +440,34 @@ export default function SalesDesk() {
                                 setSelectedConsultationForDraft(consultation);
                                 setCreatingDraft({ ...creatingDraft, [consultation.id]: true });
                                 try {
-                                  // Prepare line items from recommendations
-                                  const lineItems = consultation.recommendations
-                                    .filter((rec: any) => rec.mappedShopifyVariantId)
-                                    .map((rec: any) => {
-                                      let variantId = rec.mappedShopifyVariantId;
-                                      if (!variantId.startsWith("gid://")) {
-                                        variantId = `gid://shopify/ProductVariant/${variantId}`;
-                                      }
-                                      return {
-                                        variantId,
-                                        quantity: rec.quantity || 1,
-                                        customAttributes: rec.reason ? [{ key: "Reason", value: rec.reason }] : undefined,
-                                      };
-                                    });
+                                  // Prepare line items from recommendations if available
+                                  let lineItems: any[] = [];
+                                  
+                                  if (consultation.recommendations && consultation.recommendations.length > 0) {
+                                    lineItems = consultation.recommendations
+                                      .filter((rec: any) => rec.mappedShopifyVariantId)
+                                      .map((rec: any) => {
+                                        let variantId = rec.mappedShopifyVariantId;
+                                        if (!variantId.startsWith("gid://")) {
+                                          variantId = `gid://shopify/ProductVariant/${variantId}`;
+                                        }
+                                        return {
+                                          variantId,
+                                          quantity: rec.quantity || 1,
+                                          customAttributes: rec.reason ? [{ key: "Reason", value: rec.reason }] : undefined,
+                                        };
+                                      });
+                                  }
 
+                                  // If no recommendations, allow sales to create an empty draft order
+                                  // Shopify allows empty draft orders, which can be filled later
                                   if (lineItems.length === 0) {
-                                    alert("No valid items with variant IDs found");
-                                    return;
+                                    const confirmCreate = confirm("No recommendations found. Create an empty draft order? You can add items later in Shopify.");
+                                    if (!confirmCreate) {
+                                      setCreatingDraft({ ...creatingDraft, [consultation.id]: false });
+                                      setSelectedConsultationForDraft(null);
+                                      return;
+                                    }
                                   }
 
                                   // Prepare discount if provided

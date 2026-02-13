@@ -160,6 +160,19 @@ export default function ExpertWorkspace() {
           setItems(existingItems);
         }
         
+        // Load existing draft order details if available
+        if (data?.draftOrderDetails) {
+          setDraftOrderDetails(data.draftOrderDetails);
+          setDraftOrderUrl(data.draftOrderDetails.checkoutUrl || data.salesAssist?.checkoutLink);
+        } else if (data?.salesAssist?.shopifyDraftId) {
+          // If we have a draft order ID but no details, fetch them
+          // The backend should have fetched it, but if not, we can fetch here
+          // For now, just set the checkout URL if available
+          if (data.salesAssist.checkoutLink) {
+            setDraftOrderUrl(data.salesAssist.checkoutLink);
+          }
+        }
+        
         if (data?.astrologyReport) {
           setShowReport(true);
           extractProductsFromReport(data.astrologyReport);

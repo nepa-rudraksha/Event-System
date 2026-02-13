@@ -1351,17 +1351,12 @@ export function createRouter(io?: Server) {
         return;
       }
 
-      // If there's a draft order checkout link, try to fetch draft order details from Shopify
+      // If there's a draft order ID, fetch draft order details from Shopify
       let draftOrderDetails = null;
-      if (consultation.salesAssist?.checkoutLink) {
+      if (consultation.salesAssist?.shopifyDraftId) {
         try {
-          // Extract draft order ID from salesAssist notes
-          const notes = consultation.salesAssist.salesNotes || "";
-          const draftOrderIdMatch = notes.match(/Draft Order ID:\s*(gid:\/\/shopify\/DraftOrder\/\d+)/i);
-          if (draftOrderIdMatch) {
-            const draftOrderGid = draftOrderIdMatch[1];
-            draftOrderDetails = await getShopifyDraftOrder(draftOrderGid);
-          }
+          const draftOrderGid = consultation.salesAssist.shopifyDraftId;
+          draftOrderDetails = await getShopifyDraftOrder(draftOrderGid);
         } catch (err) {
           console.error("Error fetching draft order details:", err);
           // Continue without draft order details
@@ -1487,11 +1482,13 @@ export function createRouter(io?: Server) {
               create: {
                 visitorId: consultation.visitorId,
                 checkoutLink: draftOrder.checkoutUrl,
+                shopifyDraftId: draftOrder.draftOrderId, // Store the draft order ID
                 status: "INTERESTED",
                 salesNotes: `Draft order created: ${draftOrder.name || draftOrder.draftOrderId}`,
               },
               update: {
                 checkoutLink: draftOrder.checkoutUrl,
+                shopifyDraftId: draftOrder.draftOrderId, // Store the draft order ID
                 salesNotes: `Draft order updated: ${draftOrder.name || draftOrder.draftOrderId}`,
               },
             },
@@ -2319,15 +2316,10 @@ export function createRouter(io?: Server) {
       const consultationsWithRecommendations = await Promise.all(
         consultations.map(async (consultation) => {
           let draftOrderDetails = null;
-          if (consultation.salesAssist?.checkoutLink) {
+          if (consultation.salesAssist?.shopifyDraftId) {
             try {
-              // Extract draft order ID from salesAssist notes
-              const notes = consultation.salesAssist.salesNotes || "";
-              const draftOrderIdMatch = notes.match(/Draft Order ID:\s*(gid:\/\/shopify\/DraftOrder\/\d+)/i);
-              if (draftOrderIdMatch) {
-                const draftOrderGid = draftOrderIdMatch[1];
-                draftOrderDetails = await getShopifyDraftOrder(draftOrderGid);
-              }
+              const draftOrderGid = consultation.salesAssist.shopifyDraftId;
+              draftOrderDetails = await getShopifyDraftOrder(draftOrderGid);
             } catch (err) {
               console.error(`Error fetching draft order for consultation ${consultation.id}:`, err);
               // Continue without draft order details
