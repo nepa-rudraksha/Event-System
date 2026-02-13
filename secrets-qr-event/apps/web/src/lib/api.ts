@@ -263,8 +263,29 @@ export async function createItineraryItem(eventId: string, payload: {
   timeLabel: string;
   title: string;
   description?: string;
+  isActive?: boolean;
 }) {
   const { data } = await api.post(`/admin/event/${eventId}/itinerary`, payload);
+  return data;
+}
+
+export async function fetchAdminItinerary(eventId: string) {
+  const { data } = await api.get(`/admin/event/${eventId}/itinerary`);
+  return data;
+}
+
+export async function updateItineraryItem(id: string, payload: {
+  timeLabel?: string;
+  title?: string;
+  description?: string;
+  isActive?: boolean;
+}) {
+  const { data } = await api.put(`/admin/itinerary/${id}`, payload);
+  return data;
+}
+
+export async function deleteItineraryItem(id: string) {
+  const { data } = await api.delete(`/admin/itinerary/${id}`);
   return data;
 }
 

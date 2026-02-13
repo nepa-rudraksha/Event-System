@@ -34,6 +34,7 @@ export default function AdminDashboard() {
 
   const adminModules = [
     { path: `/admin/event/${eventId}/manager`, icon: "⚙️", title: "Event Manager", desc: "Update event details, hero image, theme" },
+    { path: `/admin/event/${eventId}/itinerary`, icon: "📅", title: "Event Schedule", desc: "Add, edit, or remove event schedule items" },
     { path: `/admin/event/${eventId}/exhibits`, icon: "📿", title: "Exhibit Catalog", desc: "Manage Rudraksha, Shaligram, and all exhibits" },
     { path: `/admin/event/${eventId}/inventory`, icon: "📦", title: "Inventory Checklist", desc: "Track items being taken to event" },
     { path: `/admin/event/${eventId}/consultation`, icon: "🎫", title: "Consultation Control", desc: "Manage token queue and consultation flow" },

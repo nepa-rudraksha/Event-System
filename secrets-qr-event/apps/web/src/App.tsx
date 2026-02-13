@@ -28,6 +28,7 @@ import AddVisitor from "./pages/admin/AddVisitor";
 import VisitorList from "./pages/admin/VisitorList";
 import NotificationsConsole from "./pages/admin/NotificationsConsole";
 import Analytics from "./pages/admin/Analytics";
+import ItineraryManager from "./pages/admin/ItineraryManager";
 import QRRedirect from "./pages/QRRedirect";
 
 export default function App() {
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="/admin/event/:eventId/customers" element={<CustomerCRM />} />
         <Route path="/admin/event/:eventId/visitors" element={<VisitorList />} />
         <Route path="/admin/event/:eventId/visitors/add" element={<AddVisitor />} />
+        <Route path="/admin/event/:eventId/itinerary" element={<ItineraryManager />} />
         <Route path="/admin/event/:eventId/notifications" element={<NotificationsConsole />} />
         <Route path="/admin/event/:eventId/analytics" element={<Analytics />} />
       </Routes>
