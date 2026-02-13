@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppBar, AppShell, Chip, SectionCard } from "../components/ui";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { RudrakshaIcon, ClockIcon } from "../components/Icons";
 import { fetchExhibits } from "../lib/api";
 import { getSession } from "../lib/session";
@@ -64,6 +65,13 @@ export default function ExhibitList() {
   return (
     <AppShell>
       <AppBar title={categoryName} />
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", to: `/e/${slug}/dashboard` },
+          { label: "View Products", to: `/e/${slug}/exhibits` },
+          { label: categoryName },
+        ]}
+      />
       
       {availableTags.length > 0 && (
         <div className="mb-6">

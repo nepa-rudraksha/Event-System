@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppBar, AppShell, SectionCard } from "../components/ui";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { fetchExhibits } from "../lib/api";
 import { getSession } from "../lib/session";
 import type { ExhibitItem } from "../lib/types";
@@ -80,6 +81,12 @@ export default function ExhibitCategories() {
   return (
     <AppShell>
       <AppBar title="View Products" />
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", to: `/e/${slug}/dashboard` },
+          { label: "View Products" },
+        ]}
+      />
       <div className="space-y-4">
         {categories.length === 0 ? (
           <SectionCard>

@@ -8,6 +8,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from "../components/ui";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { RudrakshaIcon, MessageIcon, StarIcon, ClockIcon } from "../components/Icons";
 import { fetchExhibits, api } from "../lib/api";
 import { getSession } from "../lib/session";
@@ -113,10 +114,29 @@ export default function ExhibitDetail() {
   // Ensure images is always an array
   const itemImages = Array.isArray(item.images) ? item.images : (item.images ? [item.images] : []);
 
+  // Category display names mapping
+  const categoryNames: Record<string, string> = {
+    rudraksha: "Rudraksha",
+    shaligram: "Shaligram",
+    mala: "Siddha Mala",
+    combination: "Combination",
+    bracelet: "Bracelet",
+    kanthamala: "Kanthamala",
+  };
+  
+  const categoryName = categoryNames[type.toLowerCase()] || type;
+
   return (
     <AppShell>
       <AppBar title="Exhibit Details" />
-      
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", to: `/e/${slug}/dashboard` },
+          { label: "View Products", to: `/e/${slug}/exhibits` },
+          { label: categoryName, to: `/e/${slug}/exhibits/${type}` },
+          { label: item.name },
+        ]}
+      />
       <div className="space-y-6">
         {/* Hero Image - Bigger and better */}
         <div className="relative h-[500px] md:h-[600px] rounded-xl bg-cream border-2 border-creamDark overflow-hidden">
