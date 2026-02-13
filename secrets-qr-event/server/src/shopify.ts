@@ -949,16 +949,104 @@ export async function getShopifyDraftOrder(draftOrderId: string): Promise<Shopif
           id
           name
           invoiceUrl
-          lineItems(first: 50) {
-            edges {
-              node {
-                variant {
-                  id
-                }
-                quantity
+          presentmentCurrencyCode
+          subtotalPrice
+          totalPrice
+          totalTax
+          totalPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+            presentmentMoney {
+              amount
+              currencyCode
+            }
+          }
+          subtotalPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+            presentmentMoney {
+              amount
+              currencyCode
+            }
+          }
+          totalTaxSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+            presentmentMoney {
+              amount
+              currencyCode
+            }
+          }
+          appliedDiscount {
+            description
+            value
+            valueType
+            amount
+            amountSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+              presentmentMoney {
+                amount
+                currencyCode
               }
             }
           }
+          lineItems(first: 50) {
+            edges {
+              node {
+                id
+                title
+                variant {
+                  id
+                  title
+                  price
+                }
+                quantity
+                originalUnitPrice
+                discountedUnitPrice
+                originalUnitPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                  presentmentMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+                discountedUnitPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                  presentmentMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+                customAttributes {
+                  key
+                  value
+                }
+              }
+            }
+          }
+          customer {
+            id
+            email
+            firstName
+            lastName
+          }
+          createdAt
+          updatedAt
         }
       }
     `;
@@ -999,7 +1087,10 @@ export async function getShopifyDraftOrder(draftOrderId: string): Promise<Shopif
       return priceSet?.shopMoney?.amount || "0";
     };
 
+    // Format the draft order to match the structure returned by createShopifyDraftOrder
     return {
+      draftOrderId: draftOrder.id, // Include draftOrderId for consistency
+      checkoutUrl: draftOrder.invoiceUrl, // Use invoiceUrl as checkoutUrl
       id: draftOrder.id,
       name: draftOrder.name,
       invoiceUrl: draftOrder.invoiceUrl,
@@ -1016,11 +1107,15 @@ export async function getShopifyDraftOrder(draftOrderId: string): Promise<Shopif
       lineItems: draftOrder.lineItems.edges.map((edge: any) => ({
         id: edge.node.id,
         title: edge.node.title,
-        variant: edge.node.variant,
+        variant: edge.node.variant ? {
+          id: edge.node.variant.id,
+          title: edge.node.variant.title,
+          price: edge.node.variant.price,
+        } : null,
         quantity: edge.node.quantity,
         originalUnitPrice: getPresentmentAmount(edge.node.originalUnitPriceSet),
         discountedUnitPrice: getPresentmentAmount(edge.node.discountedUnitPriceSet),
-        customAttributes: edge.node.customAttributes,
+        customAttributes: edge.node.customAttributes || [],
       })),
       customer: draftOrder.customer,
       createdAt: draftOrder.createdAt,
