@@ -2223,29 +2223,60 @@ export function createRouter(io?: Server) {
       const user = (req as any).user;
       const eventId = z.string().parse(req.query.eventId);
       
-      const whereClause: any = { 
-        eventId, 
-        status: { in: ["WAITING", "IN_PROGRESS"] },
+      // Get all tokens for stats (including DONE status)
+      const allTokensWhereClause: any = { 
+        eventId,
       };
 
       // For EXPERT role, show tokens with no expert assigned OR assigned to this expert
       if (user.role === "EXPERT") {
-        whereClause.OR = [
+        allTokensWhereClause.OR = [
           { consultation: { expertId: null } },
           { consultation: { expertId: user.id } },
         ];
       }
 
-      const tokens = await prisma.token.findMany({
-        where: whereClause,
+      // Get all tokens for stats
+      const allTokens = await prisma.token.findMany({
+        where: allTokensWhereClause,
+        include: { 
+          visitor: { select: { id: true, name: true, phone: true } }, 
+          consultation: true 
+        },
+      });
+
+      // Get active tokens (WAITING and IN_PROGRESS) for the queue
+      const activeWhereClause: any = { 
+        eventId, 
+        status: { in: ["WAITING", "IN_PROGRESS"] },
+      };
+
+      if (user.role === "EXPERT") {
+        activeWhereClause.OR = [
+          { consultation: { expertId: null } },
+          { consultation: { expertId: user.id } },
+        ];
+      }
+
+      const activeTokens = await prisma.token.findMany({
+        where: activeWhereClause,
         orderBy: [{ tokenNo: "asc" }],
         include: { 
           visitor: { select: { id: true, name: true, phone: true } }, 
           consultation: true 
         },
       });
-      
-      res.json(tokens);
+
+      // Return active tokens for queue, but include stats in response
+      res.json({
+        tokens: activeTokens,
+        stats: {
+          waiting: allTokens.filter(t => t.status === "WAITING").length,
+          inProgress: allTokens.filter(t => t.status === "IN_PROGRESS").length,
+          completed: allTokens.filter(t => t.status === "DONE").length,
+          total: allTokens.length,
+        }
+      });
     })
   );
 

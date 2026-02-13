@@ -114,6 +114,15 @@ export default function AddVisitor() {
                 />
               </Field>
 
+              <Field label="Email *">
+                <Input
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="Enter email address"
+                  type="email"
+                />
+              </Field>
+
               <Field label="Phone (WhatsApp) *">
                 <div className="flex gap-2">
                   <Input
@@ -131,15 +140,6 @@ export default function AddVisitor() {
                     {loading ? "Sending..." : "Send OTP"}
                   </PrimaryButton>
                 </div>
-              </Field>
-
-              <Field label="Email *">
-                <Input
-                  value={email}
-                  onChange={setEmail}
-                  placeholder="Enter email address"
-                  type="email"
-                />
               </Field>
 
               <Field label="Existing Customer">

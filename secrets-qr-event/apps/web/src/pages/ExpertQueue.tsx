@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { SectionCard, PrimaryButton } from "../components/ui";
 import { EventSelector } from "../components/EventSelector";
-import { fetchExpertQueue, updateTokenStatus } from "../lib/api";
+import { fetchExpertQueue, updateTokenStatus, sendWhatsAppNotification } from "../lib/api";
 import { getAdminSession, getAdminEventId, setAdminEventId, clearAdminSession } from "../lib/adminSession";
 import { MessageIcon, UserIcon, ClockIcon, CheckIcon } from "../components/Icons";
 
@@ -31,19 +31,42 @@ export default function ExpertQueue() {
     }
   }, [session, navigate, urlEventId]);
 
+  const [stats, setStats] = useState({ waiting: 0, inProgress: 0, completed: 0, total: 0 });
+
   useEffect(() => {
     if (!selectedEventId) return;
     setLoading(true);
     fetchExpertQueue(selectedEventId)
-      .then(setTokens)
-      .catch(() => setTokens([]))
+      .then((data) => {
+        // Handle both old format (array) and new format (object with tokens and stats)
+        if (Array.isArray(data)) {
+          setTokens(data);
+        } else {
+          setTokens(data.tokens || []);
+          setStats(data.stats || { waiting: 0, inProgress: 0, completed: 0, total: 0 });
+        }
+      })
+      .catch(() => {
+        setTokens([]);
+        setStats({ waiting: 0, inProgress: 0, completed: 0, total: 0 });
+      })
       .finally(() => setLoading(false));
     
     // Auto-refresh every 10 seconds
     const interval = setInterval(() => {
       fetchExpertQueue(selectedEventId)
-        .then(setTokens)
-        .catch(() => setTokens([]));
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setTokens(data);
+          } else {
+            setTokens(data.tokens || []);
+            setStats(data.stats || { waiting: 0, inProgress: 0, completed: 0, total: 0 });
+          }
+        })
+        .catch(() => {
+          setTokens([]);
+          setStats({ waiting: 0, inProgress: 0, completed: 0, total: 0 });
+        });
     }, 10000);
     
     return () => clearInterval(interval);
@@ -61,8 +84,13 @@ export default function ExpertQueue() {
     setLoading(true);
     try {
       await updateTokenStatus(tokenId, status);
-      const updated = await fetchExpertQueue(selectedEventId);
-      setTokens(updated);
+      const data = await fetchExpertQueue(selectedEventId);
+      if (Array.isArray(data)) {
+        setTokens(data);
+      } else {
+        setTokens(data.tokens || []);
+        setStats(data.stats || { waiting: 0, inProgress: 0, completed: 0, total: 0 });
+      }
     } finally {
       setLoading(false);
     }
@@ -70,7 +98,6 @@ export default function ExpertQueue() {
 
   const waitingTokens = tokens.filter((t) => t.status === "WAITING");
   const inProgressTokens = tokens.filter((t) => t.status === "IN_PROGRESS");
-  const doneTokens = tokens.filter((t) => t.status === "DONE");
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -134,19 +161,19 @@ export default function ExpertQueue() {
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <SectionCard>
-                <div className="text-3xl font-bold text-blue-600 mb-2">{waitingTokens.length}</div>
+                <div className="text-3xl font-bold text-blue-600 mb-2">{stats.waiting}</div>
                 <div className="text-body text-textDark font-semibold">Waiting</div>
               </SectionCard>
               <SectionCard>
-                <div className="text-3xl font-bold text-gold mb-2">{inProgressTokens.length}</div>
+                <div className="text-3xl font-bold text-gold mb-2">{stats.inProgress}</div>
                 <div className="text-body text-textDark font-semibold">In Progress</div>
               </SectionCard>
               <SectionCard>
-                <div className="text-3xl font-bold text-green-600 mb-2">{doneTokens.length}</div>
+                <div className="text-3xl font-bold text-green-600 mb-2">{stats.completed}</div>
                 <div className="text-body text-textDark font-semibold">Completed</div>
               </SectionCard>
               <SectionCard>
-                <div className="text-3xl font-bold text-purple-600 mb-2">{tokens.length}</div>
+                <div className="text-3xl font-bold text-purple-600 mb-2">{stats.total}</div>
                 <div className="text-body text-textDark font-semibold">Total</div>
               </SectionCard>
             </div>
@@ -190,7 +217,7 @@ export default function ExpertQueue() {
                             </span>
                           </td>
                           <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               {token.status === "WAITING" && (
                                 <PrimaryButton
                                   onClick={() => handleStatus(token.id, "IN_PROGRESS")}
@@ -221,6 +248,66 @@ export default function ExpertQueue() {
                                 </Link>
                               )}
                             </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            {token.consultation?.id && token.visitor?.phone ? (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  onClick={async () => {
+                                    if (!token.consultation?.id) return;
+                                    try {
+                                      const result = await sendWhatsAppNotification(token.consultation.id, {
+                                        templateKey: "consultation_ready",
+                                        parameters: [
+                                          { type: "text", text: token.visitor?.name || "Customer" },
+                                          { type: "text", text: String(token.tokenNo) },
+                                        ],
+                                      });
+                                      if (result.success) {
+                                        alert("✅ Consultation Ready WhatsApp sent!");
+                                      } else {
+                                        alert(`❌ Failed: ${result.reason || "Unknown error"}`);
+                                      }
+                                    } catch (err: any) {
+                                      alert(`❌ Error: ${err.response?.data?.error || err.message || "Failed to send"}`);
+                                    }
+                                  }}
+                                  className="px-3 py-1 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1"
+                                  title="Send Consultation Ready"
+                                >
+                                  <MessageIcon size={14} />
+                                  Ready
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!token.consultation?.id) return;
+                                    try {
+                                      const result = await sendWhatsAppNotification(token.consultation.id, {
+                                        templateKey: "consultation_get_ready",
+                                        parameters: [
+                                          { type: "text", text: token.visitor?.name || "Customer" },
+                                          { type: "text", text: String(token.tokenNo) },
+                                        ],
+                                      });
+                                      if (result.success) {
+                                        alert("✅ Get Ready WhatsApp sent!");
+                                      } else {
+                                        alert(`❌ Failed: ${result.reason || "Unknown error"}`);
+                                      }
+                                    } catch (err: any) {
+                                      alert(`❌ Error: ${err.response?.data?.error || err.message || "Failed to send"}`);
+                                    }
+                                  }}
+                                  className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                  title="Send Get Ready"
+                                >
+                                  <MessageIcon size={14} />
+                                  Get Ready
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-textLight">N/A</span>
+                            )}
                           </td>
                         </tr>
                       ))}
