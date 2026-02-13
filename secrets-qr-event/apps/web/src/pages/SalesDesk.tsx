@@ -168,13 +168,19 @@ export default function SalesDesk() {
   };
 
   const handleCreateOrder = async (consultationId: string) => {
-    if (!paymentId) {
-      alert("Please enter payment ID");
+    // Ensure we have the payment ID for this specific consultation
+    if (selectedConsultation?.id !== consultationId || !paymentId) {
+      alert("Please enter payment ID for this consultation");
       return;
     }
     setLoading(true);
     try {
       const consultation = recommendations.find((r) => r.id === consultationId);
+      if (!consultation) {
+        alert("Consultation not found");
+        setLoading(false);
+        return;
+      }
       const calculatedTotal = calculateTotalFromRecommendations(consultation);
       const finalAmount = totalAmount ? parseFloat(totalAmount) : calculatedTotal;
       
@@ -193,9 +199,12 @@ export default function SalesDesk() {
         items: consultation?.recommendations || [],
       });
       alert("Order created successfully! Payment marked as completed.");
-      setPaymentId("");
-      setTotalAmount("");
-      setSelectedConsultation(null);
+      // Clear only if this was the selected consultation
+      if (selectedConsultation?.id === consultationId) {
+        setPaymentId("");
+        setTotalAmount("");
+        setSelectedConsultation(null);
+      }
       loadData();
     } catch (err: any) {
       alert(err.response?.data?.error || "Failed to create order");
@@ -295,18 +304,208 @@ export default function SalesDesk() {
                           )}
                         </div>
 
-                        {/* Checkout Link - Show First */}
-                        {consultation.recommendations?.[0]?.checkoutLink && (
-                          <div className="p-2 rounded-lg bg-gold/5 border border-gold">
-                            <div className="text-xs font-semibold text-textDark mb-1">Checkout Link:</div>
+                        {/* Draft Order Details - Show First */}
+                        {consultation.salesAssist?.checkoutLink && (
+                          <div className="p-3 rounded-lg bg-gold/10 border border-gold space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-semibold text-textDark">Draft Order Created</div>
+                              <Chip className="bg-green-100 text-green-700 text-xs">
+                                {consultation.salesAssist.status || "INTERESTED"}
+                              </Chip>
+                            </div>
+                            
+                            {draftOrderDetails[consultation.id] && (
+                              <div className="space-y-2 text-xs">
+                                {draftOrderDetails[consultation.id].lineItems && draftOrderDetails[consultation.id].lineItems.length > 0 && (
+                                  <div>
+                                    <p className="font-semibold text-textDark mb-1">Items:</p>
+                                    <div className="space-y-1">
+                                      {draftOrderDetails[consultation.id].lineItems.map((item: any, idx: number) => (
+                                        <div key={idx} className="p-2 bg-white rounded border border-creamDark">
+                                          <div className="flex justify-between">
+                                            <span className="text-textDark">{item.title}</span>
+                                            <span className="text-textDark">Qty: {item.quantity}</span>
+                                          </div>
+                                          {item.discountedUnitPrice && (
+                                            <div className="text-right mt-1">
+                                              <span className="font-semibold text-textDark">₹{parseFloat(item.discountedUnitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                              {item.originalUnitPrice && parseFloat(item.originalUnitPrice) !== parseFloat(item.discountedUnitPrice) && (
+                                                <span className="text-textLight line-through ml-1">₹{parseFloat(item.originalUnitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {draftOrderDetails[consultation.id].appliedDiscount && (
+                                  <div className="p-2 bg-green-50 rounded border border-green-200">
+                                    <div className="flex justify-between">
+                                      <span className="font-semibold text-green-700">
+                                        {draftOrderDetails[consultation.id].appliedDiscount.description || "Discount"}
+                                      </span>
+                                      <span className="font-bold text-green-700">
+                                        {draftOrderDetails[consultation.id].appliedDiscount.valueType === "PERCENTAGE" 
+                                          ? `${draftOrderDetails[consultation.id].appliedDiscount.value}%`
+                                          : `₹${draftOrderDetails[consultation.id].appliedDiscount.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {draftOrderDetails[consultation.id].totalPrice && (
+                                  <div className="pt-2 border-t border-creamDark">
+                                    <div className="flex justify-between font-bold">
+                                      <span className="text-textDark">Total:</span>
+                                      <span className="text-gold">₹{parseFloat(draftOrderDetails[consultation.id].totalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            <div className="text-xs text-textMedium">Checkout Link:</div>
                             <a
-                              href={consultation.recommendations[0].checkoutLink}
+                              href={consultation.salesAssist.checkoutLink}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-xs text-gold hover:underline break-all block"
                             >
-                              {consultation.recommendations[0].checkoutLink}
+                              {consultation.salesAssist.checkoutLink}
                             </a>
+                            
+                            <div className="flex gap-2 mt-2">
+                              {draftOrderDetails[consultation.id]?.draftOrderId && (
+                                <PrimaryButton
+                                  onClick={async () => {
+                                    const draftOrderId = draftOrderDetails[consultation.id].draftOrderId;
+                                    setSendingInvoice({ ...sendingInvoice, [consultation.id]: true });
+                                    try {
+                                      await api.post(`/draft-orders/${draftOrderId}/send-invoice`);
+                                      alert("Invoice email sent successfully to customer!");
+                                      loadData();
+                                    } catch (err: any) {
+                                      alert(err.response?.data?.error || "Failed to send invoice email");
+                                    } finally {
+                                      setSendingInvoice({ ...sendingInvoice, [consultation.id]: false });
+                                    }
+                                  }}
+                                  disabled={sendingInvoice[consultation.id]}
+                                  className="text-xs py-1 px-3 flex-1"
+                                >
+                                  {sendingInvoice[consultation.id] ? "Sending..." : "📧 Send Invoice Email"}
+                                </PrimaryButton>
+                              )}
+                              <GhostButton
+                                onClick={() => {
+                                  if (consultation.salesAssist.checkoutLink) {
+                                    window.open(consultation.salesAssist.checkoutLink, '_blank');
+                                  }
+                                }}
+                                className="text-xs py-1 px-3"
+                              >
+                                Open Link
+                              </GhostButton>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Create Draft Order Button - Show if no draft order exists */}
+                        {!consultation.salesAssist?.checkoutLink && consultation.recommendations && consultation.recommendations.length > 0 && (
+                          <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 mb-3">
+                            <p className="text-xs font-semibold text-textDark mb-2">Create Draft Order (For Online Checkout):</p>
+                            <PrimaryButton
+                              onClick={async () => {
+                                setSelectedConsultationForDraft(consultation);
+                                setCreatingDraft({ ...creatingDraft, [consultation.id]: true });
+                                try {
+                                  // Prepare line items from recommendations
+                                  const lineItems = consultation.recommendations
+                                    .filter((rec: any) => rec.mappedShopifyVariantId)
+                                    .map((rec: any) => {
+                                      let variantId = rec.mappedShopifyVariantId;
+                                      if (!variantId.startsWith("gid://")) {
+                                        variantId = `gid://shopify/ProductVariant/${variantId}`;
+                                      }
+                                      return {
+                                        variantId,
+                                        quantity: rec.quantity || 1,
+                                        customAttributes: rec.reason ? [{ key: "Reason", value: rec.reason }] : undefined,
+                                      };
+                                    });
+
+                                  if (lineItems.length === 0) {
+                                    alert("No valid items with variant IDs found");
+                                    return;
+                                  }
+
+                                  // Prepare discount if provided
+                                  const discount = discountType[consultation.id] && discountValue[consultation.id]
+                                    ? {
+                                        type: discountType[consultation.id],
+                                        value: parseFloat(discountValue[consultation.id]),
+                                        title: discountTitle[consultation.id] || undefined,
+                                      }
+                                    : undefined;
+
+                                  const draftOrder = await createDraftOrder(consultation.id, {
+                                    lineItems,
+                                    note: `Draft order for ${consultation.visitor?.name || "Customer"}`,
+                                    discount,
+                                  });
+
+                                  setDraftOrderDetails({ ...draftOrderDetails, [consultation.id]: draftOrder });
+                                  alert("Draft order created successfully!");
+                                  loadData();
+                                } catch (err: any) {
+                                  alert(err.response?.data?.error || "Failed to create draft order");
+                                } finally {
+                                  setCreatingDraft({ ...creatingDraft, [consultation.id]: false });
+                                  setSelectedConsultationForDraft(null);
+                                }
+                              }}
+                              disabled={creatingDraft[consultation.id]}
+                              className="w-full text-xs"
+                            >
+                              {creatingDraft[consultation.id] ? "Creating..." : "🛒 Create Draft Order"}
+                            </PrimaryButton>
+                            
+                            {/* Discount Options */}
+                            {selectedConsultationForDraft?.id === consultation.id && (
+                              <div className="mt-3 p-3 bg-white rounded border border-creamDark space-y-2">
+                                <p className="text-xs font-semibold text-textDark">Discount (Optional):</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <select
+                                    value={discountType[consultation.id] || ""}
+                                    onChange={(e) => setDiscountType({ ...discountType, [consultation.id]: e.target.value as "PERCENTAGE" | "FIXED_AMOUNT" | null || null })}
+                                    className="text-xs rounded border border-creamDark px-2 py-1"
+                                  >
+                                    <option value="">No Discount</option>
+                                    <option value="PERCENTAGE">Percentage</option>
+                                    <option value="FIXED_AMOUNT">Fixed Amount</option>
+                                  </select>
+                                  {discountType[consultation.id] && (
+                                    <>
+                                      <Input
+                                        value={discountValue[consultation.id] || ""}
+                                        onChange={(v) => setDiscountValue({ ...discountValue, [consultation.id]: v })}
+                                        placeholder={discountType[consultation.id] === "PERCENTAGE" ? "e.g., 10" : "e.g., 500"}
+                                        type="number"
+                                        className="text-xs"
+                                      />
+                                      <Input
+                                        value={discountTitle[consultation.id] || ""}
+                                        onChange={(v) => setDiscountTitle({ ...discountTitle, [consultation.id]: v })}
+                                        placeholder="Discount Title (optional)"
+                                        className="text-xs col-span-2"
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -336,16 +535,26 @@ export default function SalesDesk() {
                           </div>
                         </div>
 
-                        {/* Create Order Form - Compact */}
+                        {/* Create Order Form - Always show if no order exists */}
                         {(!consultation.orders || consultation.orders.length === 0) && (
                           <div className="pt-2 border-t border-creamDark space-y-2">
-                            <div className="text-xs font-semibold text-textDark">Create Order (After Payment):</div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-xs font-semibold text-textDark">Create Order (After Payment):</div>
+                              {consultation.salesAssist?.checkoutLink && (
+                                <Chip className="text-xs bg-blue-100 text-blue-700">
+                                  Draft Order Available
+                                </Chip>
+                              )}
+                            </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="text-xs text-textMedium mb-1 block">Payment ID *</label>
                                 <Input
-                                  value={paymentId}
-                                  onChange={setPaymentId}
+                                  value={selectedConsultation?.id === consultation.id ? paymentId : ""}
+                                  onChange={(v) => {
+                                    setSelectedConsultation(consultation);
+                                    setPaymentId(v);
+                                  }}
                                   placeholder="Transaction ID"
                                   className="text-xs"
                                 />
@@ -353,8 +562,11 @@ export default function SalesDesk() {
                               <div>
                                 <label className="text-xs text-textMedium mb-1 block">Amount (INR)</label>
                                 <Input
-                                  value={totalAmount || calculateTotalFromRecommendations(consultation).toFixed(2)}
-                                  onChange={setTotalAmount}
+                                  value={selectedConsultation?.id === consultation.id ? (totalAmount || calculateTotalFromRecommendations(consultation).toFixed(2)) : calculateTotalFromRecommendations(consultation).toFixed(2)}
+                                  onChange={(v) => {
+                                    setSelectedConsultation(consultation);
+                                    setTotalAmount(v);
+                                  }}
                                   type="number"
                                   placeholder={calculateTotalFromRecommendations(consultation).toFixed(2)}
                                   className="text-xs"
@@ -365,12 +577,20 @@ export default function SalesDesk() {
                               Calculated: ₹{calculateTotalFromRecommendations(consultation).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <PrimaryButton
-                              onClick={() => handleCreateOrder(consultation.id)}
-                              disabled={loading || !paymentId}
+                              onClick={() => {
+                                setSelectedConsultation(consultation);
+                                handleCreateOrder(consultation.id);
+                              }}
+                              disabled={loading || (selectedConsultation?.id === consultation.id && !paymentId)}
                               className="w-full text-sm"
                             >
                               ✓ Mark Payment Completed & Create Order
                             </PrimaryButton>
+                            {consultation.salesAssist?.checkoutLink && (
+                              <p className="text-xs text-textMedium text-center mt-2">
+                                💡 Tip: You can create a draft order for online checkout, or create a regular order after receiving payment.
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

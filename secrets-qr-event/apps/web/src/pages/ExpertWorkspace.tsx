@@ -13,7 +13,7 @@ import VariantSelector from "../components/VariantSelector";
 import { MessageIcon } from "../components/Icons";
 import { KundaliChart } from "../components/KundaliChart";
 import { NavamsaChart } from "../components/NavamsaChart";
-import { fetchConsultation, lockRecommendations, updateConsultationNotes, generateAstrologyReport, fetchOrderHistory, createDraftOrder, sendWhatsAppNotification, searchShopifyProducts } from "../lib/api";
+import { fetchConsultation, lockRecommendations, updateConsultationNotes, generateAstrologyReport, fetchOrderHistory, createDraftOrder, sendWhatsAppNotification, searchShopifyProducts, api } from "../lib/api";
 import { getAdminEventId } from "../lib/adminSession";
 
 type RecommendationDraft = {
@@ -74,6 +74,8 @@ export default function ExpertWorkspace() {
   const [orderHistory, setOrderHistory] = useState<any>(null);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [draftOrderUrl, setDraftOrderUrl] = useState<string | null>(null);
+  const [draftOrderDetails, setDraftOrderDetails] = useState<any>(null);
+  const [sendingInvoice, setSendingInvoice] = useState(false);
   const [items, setItems] = useState<RecommendationDraft[]>([]);
   const [categorizedProducts, setCategorizedProducts] = useState<Record<string, CategorizedProduct[]>>({});
   const [loading, setLoading] = useState(false);
@@ -692,7 +694,7 @@ export default function ExpertWorkspace() {
       });
 
       setDraftOrderUrl(draftOrder.checkoutUrl);
-      alert("Draft order created! Checkout link generated.");
+      setDraftOrderDetails(draftOrder);
 
       // Also save recommendations
       await updateConsultationNotes(consultationId, notes);
@@ -1824,19 +1826,140 @@ export default function ExpertWorkspace() {
           <GhostButton onClick={() => navigate(-1)}>Cancel</GhostButton>
         </div>
 
-        {draftOrderUrl && (
+        {draftOrderDetails && (
           <SectionCard>
-            <div className="p-4 rounded-lg bg-gold/10 border border-gold">
-              <p className="text-sm font-semibold text-textDark mb-2">✅ Draft Order Created!</p>
-              <p className="text-xs text-textMedium mb-2">Share this checkout link with the customer:</p>
-              <a
-                href={draftOrderUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gold hover:underline break-all block"
-              >
-                {draftOrderUrl}
-              </a>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-heading text-textDark">Draft Order Details</h3>
+                <Chip className="bg-green-100 text-green-700">Created</Chip>
+              </div>
+              
+              <div className="p-4 rounded-lg bg-cream border border-creamDark">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-textMedium">Order Name:</span>
+                    <span className="text-sm font-semibold text-textDark">{draftOrderDetails.name || "N/A"}</span>
+                  </div>
+                  
+                  {draftOrderDetails.lineItems && draftOrderDetails.lineItems.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold text-textDark mb-2">Line Items:</p>
+                      <div className="space-y-2">
+                        {draftOrderDetails.lineItems.map((item: any, idx: number) => (
+                          <div key={idx} className="p-2 bg-white rounded border border-creamDark">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-textDark">{item.title}</p>
+                                {item.variant?.title && (
+                                  <p className="text-xs text-textMedium">{item.variant.title}</p>
+                                )}
+                                <p className="text-xs text-textLight">Qty: {item.quantity}</p>
+                              </div>
+                              <div className="text-right">
+                                {item.discountedUnitPrice ? (
+                                  <div>
+                                    <p className="text-sm font-semibold text-textDark">₹{parseFloat(item.discountedUnitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                    {item.originalUnitPrice && parseFloat(item.originalUnitPrice) !== parseFloat(item.discountedUnitPrice) && (
+                                      <p className="text-xs text-textLight line-through">₹{parseFloat(item.originalUnitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm font-semibold text-textDark">₹{parseFloat(item.variant?.price || "0").toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {draftOrderDetails.appliedDiscount && (
+                    <div className="p-3 bg-green-50 rounded border border-green-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold text-green-700">
+                          Discount: {draftOrderDetails.appliedDiscount.description || "Discount"}
+                        </span>
+                        <span className="text-sm font-bold text-green-700">
+                          {draftOrderDetails.appliedDiscount.valueType === "PERCENTAGE" 
+                            ? `${draftOrderDetails.appliedDiscount.value}%`
+                            : `₹${draftOrderDetails.appliedDiscount.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                        </span>
+                      </div>
+                      {draftOrderDetails.appliedDiscount.amount && (
+                        <p className="text-xs text-green-600 mt-1">
+                          Amount: ₹{parseFloat(draftOrderDetails.appliedDiscount.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t border-creamDark space-y-2">
+                    {draftOrderDetails.subtotalPrice && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-textMedium">Subtotal:</span>
+                        <span className="text-textDark">₹{parseFloat(draftOrderDetails.subtotalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {draftOrderDetails.totalTax && parseFloat(draftOrderDetails.totalTax) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-textMedium">Tax:</span>
+                        <span className="text-textDark">₹{parseFloat(draftOrderDetails.totalTax).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {draftOrderDetails.totalPrice && (
+                      <div className="flex justify-between text-base font-bold pt-2 border-t border-creamDark">
+                        <span className="text-textDark">Total:</span>
+                        <span className="text-gold">₹{parseFloat(draftOrderDetails.totalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <PrimaryButton
+                  onClick={async () => {
+                    if (!draftOrderDetails.draftOrderId) return;
+                    setSendingInvoice(true);
+                    try {
+                      await api.post(`/draft-orders/${draftOrderDetails.draftOrderId}/send-invoice`);
+                      alert("Invoice email sent successfully to customer!");
+                    } catch (err: any) {
+                      alert(err.response?.data?.error || "Failed to send invoice email");
+                    } finally {
+                      setSendingInvoice(false);
+                    }
+                  }}
+                  disabled={sendingInvoice}
+                  className="flex-1"
+                >
+                  {sendingInvoice ? "Sending..." : "📧 Send Invoice Email"}
+                </PrimaryButton>
+                <GhostButton
+                  onClick={() => {
+                    if (draftOrderUrl) {
+                      window.open(draftOrderUrl, '_blank');
+                    }
+                  }}
+                >
+                  Open Checkout Link
+                </GhostButton>
+              </div>
+
+              {draftOrderUrl && (
+                <div className="p-3 rounded-lg bg-gold/5 border border-gold/30">
+                  <p className="text-xs text-textMedium mb-1">Checkout Link:</p>
+                  <a
+                    href={draftOrderUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-gold hover:underline break-all block"
+                  >
+                    {draftOrderUrl}
+                  </a>
+                </div>
+              )}
             </div>
           </SectionCard>
         )}

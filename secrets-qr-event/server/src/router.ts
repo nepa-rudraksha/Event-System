@@ -9,7 +9,7 @@ import { createOtp, peekOtp, verifyOtp } from "./lib/otpStore.js";
 import { broadcastEvent } from "./realtime/socket.js";
 import { requireAuth, requireRole, signToken } from "./lib/auth.js";
 import { geocodePlace } from "./lib/geocode.js";
-import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct, searchShopifyProducts, fetchVariantPricesInINR } from "./shopify.js";
+import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct, searchShopifyProducts, fetchVariantPricesInINR, sendDraftOrderInvoice } from "./shopify.js";
 
 const phoneSchema = z.string().min(6).max(20);
 const emailSchema = z.string().email();
@@ -1467,9 +1467,11 @@ export function createRouter(io?: Server) {
                 visitorId: consultation.visitorId,
                 checkoutLink: draftOrder.checkoutUrl,
                 status: "INTERESTED",
+                salesNotes: `Draft order created: ${draftOrder.name || draftOrder.draftOrderId}`,
               },
               update: {
                 checkoutLink: draftOrder.checkoutUrl,
+                salesNotes: `Draft order updated: ${draftOrder.name || draftOrder.draftOrderId}`,
               },
             },
           },
@@ -1479,7 +1481,34 @@ export function createRouter(io?: Server) {
       res.json({
         draftOrderId: draftOrder.draftOrderId,
         checkoutUrl: draftOrder.checkoutUrl,
+        name: draftOrder.name,
+        subtotalPrice: draftOrder.subtotalPrice,
+        totalPrice: draftOrder.totalPrice,
+        totalTax: draftOrder.totalTax,
+        appliedDiscount: draftOrder.appliedDiscount,
+        lineItems: draftOrder.lineItems,
+        customer: draftOrder.customer,
+        createdAt: draftOrder.createdAt,
+        updatedAt: draftOrder.updatedAt,
       });
+    })
+  );
+
+  // Send invoice email for draft order
+  router.post(
+    "/draft-orders/:draftOrderId/send-invoice",
+    requireAuth,
+    requireRole(["EXPERT", "ADMIN", "SALES"]),
+    asyncHandler(async (req, res) => {
+      const { draftOrderId } = req.params;
+      
+      try {
+        await sendDraftOrderInvoice(draftOrderId);
+        res.json({ success: true, message: "Invoice email sent successfully" });
+      } catch (error: any) {
+        console.error("Error sending invoice:", error);
+        res.status(500).json({ error: error.message || "Failed to send invoice email" });
+      }
     })
   );
 

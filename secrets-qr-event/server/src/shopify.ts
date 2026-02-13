@@ -245,16 +245,43 @@ export async function createShopifyDraftOrder(
             id
             name
             invoiceUrl
+            subtotalPrice
+            totalPrice
+            totalTax
+            appliedDiscount {
+              description
+              value
+              valueType
+              amount
+            }
             lineItems(first: 50) {
               edges {
                 node {
+                  id
+                  title
                   variant {
                     id
+                    title
+                    price
                   }
                   quantity
+                  originalUnitPrice
+                  discountedUnitPrice
+                  customAttributes {
+                    key
+                    value
+                  }
                 }
               }
             }
+            customer {
+              id
+              email
+              firstName
+              lastName
+            }
+            createdAt
+            updatedAt
           }
           userErrors {
             field
@@ -337,6 +364,23 @@ export async function createShopifyDraftOrder(
     return {
       draftOrderId: draftOrder.id,
       checkoutUrl: draftOrder.invoiceUrl,
+      name: draftOrder.name,
+      subtotalPrice: draftOrder.subtotalPrice,
+      totalPrice: draftOrder.totalPrice,
+      totalTax: draftOrder.totalTax,
+      appliedDiscount: draftOrder.appliedDiscount,
+      lineItems: draftOrder.lineItems.edges.map((edge: any) => ({
+        id: edge.node.id,
+        title: edge.node.title,
+        variant: edge.node.variant,
+        quantity: edge.node.quantity,
+        originalUnitPrice: edge.node.originalUnitPrice,
+        discountedUnitPrice: edge.node.discountedUnitPrice,
+        customAttributes: edge.node.customAttributes,
+      })),
+      customer: draftOrder.customer,
+      createdAt: draftOrder.createdAt,
+      updatedAt: draftOrder.updatedAt,
     };
   } catch (error) {
     console.error("Error creating Shopify draft order:", error);
@@ -744,6 +788,70 @@ export async function fetchVariantPricesInINR(variantIds: string[]): Promise<Rec
   } catch (error) {
     console.error("Error fetching variant prices:", error);
     return {};
+  }
+}
+
+/**
+ * Send invoice email for a draft order
+ */
+export async function sendDraftOrderInvoice(draftOrderId: string): Promise<boolean> {
+  const config = getShopifyConfig();
+  const { SHOPIFY_STORE, SHOPIFY_ACCESS_TOKEN, SHOPIFY_GRAPHQL_ENDPOINT, SHOPIFY_API_URL } = config;
+  
+  if (!SHOPIFY_STORE || !SHOPIFY_ACCESS_TOKEN) {
+    throw new Error("Shopify credentials not configured");
+  }
+
+  try {
+    const mutation = `
+      mutation DraftOrderInvoiceSend($id: ID!, $email: EmailInput) {
+        draftOrderInvoiceSend(id: $id, email: $email) {
+          draftOrder {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = { 
+      id: draftOrderId,
+      email: null // null means use customer email from draft order
+    };
+
+    const graphqlUrl = SHOPIFY_GRAPHQL_ENDPOINT || `${SHOPIFY_API_URL}/graphql.json`;
+    const response = await fetch(graphqlUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({ query: mutation, variables }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Shopify API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.errors) {
+      console.error("Shopify GraphQL errors:", data.errors);
+      throw new Error(data.errors[0]?.message || "Failed to send invoice");
+    }
+
+    if (data.data?.draftOrderInvoiceSend?.userErrors?.length > 0) {
+      const errors = data.data.draftOrderInvoiceSend.userErrors;
+      throw new Error(errors.map((e: any) => e.message).join(", "));
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error sending draft order invoice:", error);
+    throw error;
   }
 }
 
