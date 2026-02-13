@@ -653,6 +653,8 @@ export default function ExpertWorkspace() {
         .map((item) => {
           // Extract numeric ID from GID format if needed
           let variantId = item.mappedShopifyVariantId;
+          if (!variantId) return null; // Skip if no variant ID
+          
           if (variantId.startsWith("gid://")) {
             // Extract numeric ID from GID format
             const match = variantId.match(/\/(\d+)$/);
@@ -669,7 +671,8 @@ export default function ExpertWorkspace() {
               ? [{ key: "Reason", value: item.reason }]
               : undefined,
           };
-        });
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null);
 
       if (lineItems.length === 0) {
         alert("No valid items with variant IDs found");
@@ -1883,7 +1886,7 @@ export default function ExpertWorkspace() {
                         <span className="text-sm font-bold text-green-700">
                           {draftOrderDetails.appliedDiscount.valueType === "PERCENTAGE" 
                             ? `${draftOrderDetails.appliedDiscount.value}%`
-                            : `₹${draftOrderDetails.appliedDiscount.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                            : `₹${(typeof draftOrderDetails.appliedDiscount.value === 'number' ? draftOrderDetails.appliedDiscount.value : parseFloat(draftOrderDetails.appliedDiscount.value || "0")).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
                         </span>
                       </div>
                       {draftOrderDetails.appliedDiscount.amount && (

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppBar, AppShell, PrimaryButton, SectionCard, GhostButton, Chip, Input } from "../components/ui";
 import { EventSelector } from "../components/EventSelector";
-import { fetchSalesRecommendations, fetchSalesOrders, createOrder, processOrder } from "../lib/api";
+import { fetchSalesRecommendations, fetchSalesOrders, createOrder, processOrder, createDraftOrder, api } from "../lib/api";
 import { getAdminSession, getAdminEventId, setAdminEventId } from "../lib/adminSession";
 
 export default function SalesDesk() {
@@ -26,6 +26,15 @@ export default function SalesDesk() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"recommendations" | "orders">("recommendations");
   const [accessoryPoojaPrices, setAccessoryPoojaPrices] = useState<Record<string, number>>({});
+  const [selectedConsultationForDraft, setSelectedConsultationForDraft] = useState<any>(null);
+  const [draftOrderDetails, setDraftOrderDetails] = useState<Record<string, any>>({});
+  const [sendingInvoice, setSendingInvoice] = useState<Record<string, boolean>>({});
+  const [creatingDraft, setCreatingDraft] = useState<Record<string, boolean>>({});
+  
+  // Discount state for draft orders
+  const [discountType, setDiscountType] = useState<Record<string, "PERCENTAGE" | "FIXED_AMOUNT" | null>>({});
+  const [discountValue, setDiscountValue] = useState<Record<string, string>>({});
+  const [discountTitle, setDiscountTitle] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!session) {
