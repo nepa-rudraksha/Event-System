@@ -167,9 +167,32 @@ export default function Dashboard() {
 
       {showQRScanner && (
         <QRScanner
-          onScan={(code) => {
+          onScan={(scannedText) => {
             setShowQRScanner(false);
-            // Navigate to QR redirect page
+            
+            // Clean the scanned text
+            const cleaned = scannedText.trim();
+            
+            // Check if it's a full URL (starts with http:// or https://)
+            if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+              // It's a complete URL - navigate to it directly
+              window.location.href = cleaned;
+              return;
+            }
+            
+            // Check if it's a URL without protocol (e.g., www.example.com or example.com/path)
+            if (cleaned.includes('.') && (cleaned.includes('/') || cleaned.includes('www.'))) {
+              // Add https:// if missing and navigate
+              const url = cleaned.startsWith('//') ? `https:${cleaned}` : 
+                         cleaned.startsWith('/') ? cleaned : 
+                         `https://${cleaned}`;
+              window.location.href = url;
+              return;
+            }
+            
+            // Otherwise, treat it as a QR code and navigate to QR redirect page
+            // Extract just the code part if it contains slashes or special characters
+            const code = cleaned.split('/').pop() || cleaned.split('?')[0] || cleaned;
             navigate(`/qr/${code}`);
           }}
           onClose={() => setShowQRScanner(false)}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 
 interface QRScannerProps {
   onScan: (code: string) => void;
@@ -75,9 +75,15 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
             disableFlip: false,
+            // Support QR code format (can contain URLs, codes, or any text)
+            // QR_CODE format supports full URLs without any prefixes
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.QR_CODE,
+            ],
           },
           (decodedText) => {
             if (isMounted) {
+              // Pass the complete scanned text without any modifications
               onScanRef.current(decodedText);
               // Stop scanning after successful scan
               if (scannerInstance) {
@@ -88,6 +94,10 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           },
           (errorMessage) => {
             // Ignore scanning errors, just keep scanning
+            // Only log if it's a significant error
+            if (errorMessage && !errorMessage.includes('NotFoundException')) {
+              console.debug("QR Scanner:", errorMessage);
+            }
           }
         );
         
