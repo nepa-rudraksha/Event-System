@@ -907,6 +907,7 @@ export default function ExpertWorkspace() {
                   onClick={() => handleSendWhatsApp("consultation_ready")}
                   disabled={!consultationId}
                   className="px-3 py-1.5 rounded-full bg-gold text-white text-xs font-semibold hover:bg-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  title="Send 'Consultation Ready' message - Notifies customer that their consultation is now ready and they should proceed to the consultation area"
                 >
                   <MessageIcon size={12} />
                   Consultation Ready
@@ -915,15 +916,26 @@ export default function ExpertWorkspace() {
                   onClick={() => handleSendWhatsApp("token_near")}
                   disabled={!consultationId}
                   className="px-3 py-1.5 rounded-full bg-gold text-white text-xs font-semibold hover:bg-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  title="Send 'Token Near' message - Notifies customer that their token is about to be called soon"
                 >
                   <MessageIcon size={12} />
                   Token Near
+                </button>
+                <button
+                  onClick={() => handleSendWhatsApp("consultation_reminder")}
+                  disabled={!consultationId}
+                  className="px-3 py-1.5 rounded-full bg-gold text-white text-xs font-semibold hover:bg-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  title="Send 'Consultation Reminder' message - Reminds customer about their upcoming consultation"
+                >
+                  <MessageIcon size={12} />
+                  Consultation Reminder
                 </button>
                 {consultation?.token && (
                   <button
                     onClick={() => handleSendWhatsApp("token_booked")}
                     disabled={!consultationId}
                     className="px-3 py-1.5 rounded-full bg-gold text-white text-xs font-semibold hover:bg-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    title="Send 'Token Booked' message - Notifies customer that their consultation token has been booked successfully"
                   >
                     <MessageIcon size={12} />
                     Token Booked

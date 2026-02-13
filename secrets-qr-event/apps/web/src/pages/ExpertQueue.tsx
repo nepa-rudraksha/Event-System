@@ -190,6 +190,7 @@ export default function ExpertQueue() {
                         <th className="text-left py-3 px-4 text-sm font-semibold text-textDark">Phone</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-textDark">Status</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-textDark">Actions</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-textDark">WhatsApp</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -273,7 +274,7 @@ export default function ExpertQueue() {
                                     }
                                   }}
                                   className="px-3 py-1 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1"
-                                  title="Send Consultation Ready"
+                                  title="Send 'Consultation Ready' message - Notifies customer that their consultation is now ready and they should proceed to the consultation area"
                                 >
                                   <MessageIcon size={14} />
                                   Ready
@@ -299,10 +300,62 @@ export default function ExpertQueue() {
                                     }
                                   }}
                                   className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"
-                                  title="Send Get Ready"
+                                  title="Send 'Get Ready' message - Notifies customer that their consultation is coming up soon and they should be ready"
                                 >
                                   <MessageIcon size={14} />
                                   Get Ready
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!token.consultation?.id) return;
+                                    try {
+                                      const result = await sendWhatsAppNotification(token.consultation.id, {
+                                        templateKey: "token_near",
+                                        parameters: [
+                                          { type: "text", text: token.visitor?.name || "Customer" },
+                                          { type: "text", text: String(token.tokenNo) },
+                                        ],
+                                      });
+                                      if (result.success) {
+                                        alert("✅ Token Near WhatsApp sent!");
+                                      } else {
+                                        alert(`❌ Failed: ${result.reason || "Unknown error"}`);
+                                      }
+                                    } catch (err: any) {
+                                      alert(`❌ Error: ${err.response?.data?.error || err.message || "Failed to send"}`);
+                                    }
+                                  }}
+                                  className="px-3 py-1 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 transition-colors flex items-center gap-1"
+                                  title="Send 'Token Near' message - Notifies customer that their token is about to be called soon"
+                                >
+                                  <MessageIcon size={14} />
+                                  Token Near
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!token.consultation?.id) return;
+                                    try {
+                                      const result = await sendWhatsAppNotification(token.consultation.id, {
+                                        templateKey: "consultation_reminder",
+                                        parameters: [
+                                          { type: "text", text: token.visitor?.name || "Customer" },
+                                          { type: "text", text: String(token.tokenNo) },
+                                        ],
+                                      });
+                                      if (result.success) {
+                                        alert("✅ Consultation Reminder WhatsApp sent!");
+                                      } else {
+                                        alert(`❌ Failed: ${result.reason || "Unknown error"}`);
+                                      }
+                                    } catch (err: any) {
+                                      alert(`❌ Error: ${err.response?.data?.error || err.message || "Failed to send"}`);
+                                    }
+                                  }}
+                                  className="px-3 py-1 rounded-lg bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition-colors flex items-center gap-1"
+                                  title="Send 'Consultation Reminder' message - Reminds customer about their upcoming consultation"
+                                >
+                                  <MessageIcon size={14} />
+                                  Reminder
                                 </button>
                               </div>
                             ) : (
