@@ -9,7 +9,7 @@ import { createOtp, peekOtp, verifyOtp } from "./lib/otpStore.js";
 import { broadcastEvent } from "./realtime/socket.js";
 import { requireAuth, requireRole, signToken } from "./lib/auth.js";
 import { geocodePlace } from "./lib/geocode.js";
-import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct, searchShopifyProducts, fetchVariantPricesInINR, sendDraftOrderInvoice } from "./shopify.js";
+import { fetchShopifyOrdersByEmail, createShopifyDraftOrder, fetchShopifyProduct, searchShopifyProducts, fetchVariantPricesInINR, sendDraftOrderInvoice, getShopifyDraftOrder } from "./shopify.js";
 
 const phoneSchema = z.string().min(6).max(20);
 const emailSchema = z.string().email();
@@ -1350,7 +1350,28 @@ export function createRouter(io?: Server) {
         res.status(404).json({ error: "Consultation not found" });
         return;
       }
-      res.json(consultation);
+
+      // If there's a draft order checkout link, try to fetch draft order details from Shopify
+      let draftOrderDetails = null;
+      if (consultation.salesAssist?.checkoutLink) {
+        try {
+          // Extract draft order ID from salesAssist notes
+          const notes = consultation.salesAssist.salesNotes || "";
+          const draftOrderIdMatch = notes.match(/Draft Order ID:\s*(gid:\/\/shopify\/DraftOrder\/\d+)/i);
+          if (draftOrderIdMatch) {
+            const draftOrderGid = draftOrderIdMatch[1];
+            draftOrderDetails = await getShopifyDraftOrder(draftOrderGid);
+          }
+        } catch (err) {
+          console.error("Error fetching draft order details:", err);
+          // Continue without draft order details
+        }
+      }
+
+      res.json({
+        ...consultation,
+        draftOrderDetails, // Include draft order details if available
+      });
     })
   );
 

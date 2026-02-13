@@ -57,6 +57,16 @@ export default function SalesDesk() {
       ]);
       setRecommendations(recs);
       setOrders(ords);
+      
+      // Load draft order details for consultations that have draft orders
+      const draftOrderDetailsMap: Record<string, any> = {};
+      for (const consultation of recs) {
+        if (consultation.salesAssist?.checkoutLink && consultation.draftOrderDetails) {
+          draftOrderDetailsMap[consultation.id] = consultation.draftOrderDetails;
+        }
+      }
+      setDraftOrderDetails(draftOrderDetailsMap);
+      
       console.log("Loaded recommendations:", recs.length, "orders:", ords.length);
       console.log("Orders data:", ords);
       if (ords.length === 0 && recs.length > 0) {

@@ -699,6 +699,15 @@ export default function ExpertWorkspace() {
       setDraftOrderUrl(draftOrder.checkoutUrl);
       setDraftOrderDetails(draftOrder);
 
+      // Reload consultation to get updated data
+      const updated = await fetchConsultation(consultationId);
+      setConsultation(updated);
+      
+      // If consultation has draft order details, set them
+      if (updated.draftOrderDetails) {
+        setDraftOrderDetails(updated.draftOrderDetails);
+      }
+
       // Also save recommendations
       await updateConsultationNotes(consultationId, notes);
       await lockRecommendations(consultationId, {

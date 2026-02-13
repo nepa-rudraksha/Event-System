@@ -245,14 +245,55 @@ export async function createShopifyDraftOrder(
             id
             name
             invoiceUrl
+            presentmentCurrencyCode
             subtotalPrice
             totalPrice
             totalTax
+            totalPriceSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+              presentmentMoney {
+                amount
+                currencyCode
+              }
+            }
+            subtotalPriceSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+              presentmentMoney {
+                amount
+                currencyCode
+              }
+            }
+            totalTaxSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+              presentmentMoney {
+                amount
+                currencyCode
+              }
+            }
             appliedDiscount {
               description
               value
               valueType
               amount
+              amountSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+                presentmentMoney {
+                  amount
+                  currencyCode
+                }
+              }
             }
             lineItems(first: 50) {
               edges {
@@ -267,6 +308,26 @@ export async function createShopifyDraftOrder(
                   quantity
                   originalUnitPrice
                   discountedUnitPrice
+                  originalUnitPriceSet {
+                    shopMoney {
+                      amount
+                      currencyCode
+                    }
+                    presentmentMoney {
+                      amount
+                      currencyCode
+                    }
+                  }
+                  discountedUnitPriceSet {
+                    shopMoney {
+                      amount
+                      currencyCode
+                    }
+                    presentmentMoney {
+                      amount
+                      currencyCode
+                    }
+                  }
                   customAttributes {
                     key
                     value
@@ -299,8 +360,9 @@ export async function createShopifyDraftOrder(
         customAttributes: item.customAttributes || [],
       })),
       note: note || "Created from Expert Consultation",
+      // Set presentment currency to INR
+      presentmentCurrencyCode: "INR",
       // Set shipping address with India to ensure INR currency
-      // The currency will be determined by the store's market settings or customer location
       shippingAddress: {
         country: "India",
         countryCode: "IN",
@@ -361,21 +423,35 @@ export async function createShopifyDraftOrder(
       throw new Error("No draft order returned from Shopify");
     }
 
+    // Use presentment money (INR) if available, otherwise fall back to shop money
+    const getPresentmentAmount = (priceSet: any) => {
+      if (priceSet?.presentmentMoney?.amount) {
+        return priceSet.presentmentMoney.amount;
+      }
+      return priceSet?.shopMoney?.amount || "0";
+    };
+
     return {
       draftOrderId: draftOrder.id,
       checkoutUrl: draftOrder.invoiceUrl,
       name: draftOrder.name,
-      subtotalPrice: draftOrder.subtotalPrice,
-      totalPrice: draftOrder.totalPrice,
-      totalTax: draftOrder.totalTax,
-      appliedDiscount: draftOrder.appliedDiscount,
+      presentmentCurrencyCode: draftOrder.presentmentCurrencyCode || "INR",
+      subtotalPrice: getPresentmentAmount(draftOrder.subtotalPriceSet),
+      totalPrice: getPresentmentAmount(draftOrder.totalPriceSet),
+      totalTax: getPresentmentAmount(draftOrder.totalTaxSet),
+      appliedDiscount: draftOrder.appliedDiscount ? {
+        description: draftOrder.appliedDiscount.description,
+        value: draftOrder.appliedDiscount.value,
+        valueType: draftOrder.appliedDiscount.valueType,
+        amount: getPresentmentAmount(draftOrder.appliedDiscount.amountSet),
+      } : null,
       lineItems: draftOrder.lineItems.edges.map((edge: any) => ({
         id: edge.node.id,
         title: edge.node.title,
         variant: edge.node.variant,
         quantity: edge.node.quantity,
-        originalUnitPrice: edge.node.originalUnitPrice,
-        discountedUnitPrice: edge.node.discountedUnitPrice,
+        originalUnitPrice: getPresentmentAmount(edge.node.originalUnitPriceSet),
+        discountedUnitPrice: getPresentmentAmount(edge.node.discountedUnitPriceSet),
         customAttributes: edge.node.customAttributes,
       })),
       customer: draftOrder.customer,
@@ -910,7 +986,46 @@ export async function getShopifyDraftOrder(draftOrderId: string): Promise<Shopif
       return null;
     }
 
-    return data.data?.draftOrder || null;
+    const draftOrder = data.data?.draftOrder;
+    if (!draftOrder) {
+      return null;
+    }
+
+    // Use presentment money (INR) if available, otherwise fall back to shop money
+    const getPresentmentAmount = (priceSet: any) => {
+      if (priceSet?.presentmentMoney?.amount) {
+        return priceSet.presentmentMoney.amount;
+      }
+      return priceSet?.shopMoney?.amount || "0";
+    };
+
+    return {
+      id: draftOrder.id,
+      name: draftOrder.name,
+      invoiceUrl: draftOrder.invoiceUrl,
+      presentmentCurrencyCode: draftOrder.presentmentCurrencyCode || "INR",
+      subtotalPrice: getPresentmentAmount(draftOrder.subtotalPriceSet),
+      totalPrice: getPresentmentAmount(draftOrder.totalPriceSet),
+      totalTax: getPresentmentAmount(draftOrder.totalTaxSet),
+      appliedDiscount: draftOrder.appliedDiscount ? {
+        description: draftOrder.appliedDiscount.description,
+        value: draftOrder.appliedDiscount.value,
+        valueType: draftOrder.appliedDiscount.valueType,
+        amount: getPresentmentAmount(draftOrder.appliedDiscount.amountSet),
+      } : null,
+      lineItems: draftOrder.lineItems.edges.map((edge: any) => ({
+        id: edge.node.id,
+        title: edge.node.title,
+        variant: edge.node.variant,
+        quantity: edge.node.quantity,
+        originalUnitPrice: getPresentmentAmount(edge.node.originalUnitPriceSet),
+        discountedUnitPrice: getPresentmentAmount(edge.node.discountedUnitPriceSet),
+        customAttributes: edge.node.customAttributes,
+      })),
+      customer: draftOrder.customer,
+      createdAt: draftOrder.createdAt,
+      updatedAt: draftOrder.updatedAt,
+    };
   } catch (error) {
     console.error("Error fetching Shopify draft order:", error);
     return null;
