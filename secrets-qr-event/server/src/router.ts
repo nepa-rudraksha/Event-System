@@ -110,6 +110,38 @@ async function sendWhatsAppNotification(
 
 export function createRouter(io?: Server) {
   const router = Router();
+  
+  // Middleware to handle old draft order send-invoice URL format with GID
+  // This intercepts requests to /draft-orders/*/send-invoice and rewrites them
+  router.use((req, res, next) => {
+    // Check if this is a POST to /draft-orders/*/send-invoice pattern (old format)
+    if (req.method === "POST" && req.originalUrl) {
+      // Match both with and without /api prefix
+      const match = req.originalUrl.match(/(?:^\/api)?\/draft-orders\/(.+?)\/send-invoice$/);
+      if (match && match[1]) {
+        // Extract the draft order ID
+        let draftOrderId = match[1];
+        try {
+          draftOrderId = decodeURIComponent(draftOrderId);
+        } catch (e) {
+          // Use as-is if decoding fails
+        }
+        
+        // Store in request body and modify URL to match new route
+        if (!req.body) req.body = {};
+        req.body.draftOrderId = draftOrderId;
+        req.url = "/draft-orders/send-invoice";
+        req.path = "/draft-orders/send-invoice";
+        // Also update originalUrl to ensure routing works
+        if (req.originalUrl.startsWith("/api")) {
+          req.originalUrl = "/api/draft-orders/send-invoice";
+        } else {
+          req.originalUrl = "/draft-orders/send-invoice";
+        }
+      }
+    }
+    next();
+  });
 
   // Admin routes should come before general routes to avoid conflicts
   router.get(
@@ -1513,7 +1545,8 @@ export function createRouter(io?: Server) {
   );
 
   // Send invoice email for draft order
-  // Accept draft order ID in request body to avoid URL encoding issues with GID format
+  // The middleware above handles old format (URL path) and rewrites it
+  // This handler accepts the new format (request body)
   router.post(
     "/draft-orders/send-invoice",
     requireAuth,
@@ -1535,6 +1568,7 @@ export function createRouter(io?: Server) {
       }
     })
   );
+
 
   // Order processing endpoints
   router.post(
