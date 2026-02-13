@@ -1953,9 +1953,10 @@ export default function ExpertWorkspace() {
                     if (!draftOrderDetails.draftOrderId) return;
                     setSendingInvoice(true);
                     try {
-                      // URL-encode the draft order ID to handle GID format with special characters
-                      const encodedDraftOrderId = encodeURIComponent(draftOrderDetails.draftOrderId);
-                      await api.post(`/draft-orders/${encodedDraftOrderId}/send-invoice`);
+                      // Send draft order ID in request body to avoid URL encoding issues
+                      await api.post(`/draft-orders/send-invoice`, {
+                        draftOrderId: draftOrderDetails.draftOrderId,
+                      });
                       alert("Invoice email sent successfully to customer!");
                     } catch (err: any) {
                       alert(err.response?.data?.error || "Failed to send invoice email");

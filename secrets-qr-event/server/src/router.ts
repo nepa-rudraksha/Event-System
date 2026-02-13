@@ -1513,13 +1513,18 @@ export function createRouter(io?: Server) {
   );
 
   // Send invoice email for draft order
+  // Accept draft order ID in request body to avoid URL encoding issues with GID format
   router.post(
-    "/draft-orders/:draftOrderId/send-invoice",
+    "/draft-orders/send-invoice",
     requireAuth,
     requireRole(["EXPERT", "ADMIN", "SALES"]),
     asyncHandler(async (req, res) => {
-      // URL-decode the draft order ID since it's URL-encoded in the path
-      const draftOrderId = decodeURIComponent(req.params.draftOrderId);
+      const { draftOrderId } = req.body;
+      
+      if (!draftOrderId) {
+        res.status(400).json({ error: "draftOrderId is required" });
+        return;
+      }
       
       try {
         await sendDraftOrderInvoice(draftOrderId);
