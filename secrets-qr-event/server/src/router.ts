@@ -823,7 +823,8 @@ export function createRouter(io?: Server) {
 
       // Fetch recommendations and sales assist separately if consultation exists
       let recommendations: any[] = [];
-      let salesAssist: any[] = [];
+      let salesAssist: any = null;
+      let draftOrderDetails: any = null;
       
       if (latestConsultation) {
         const consultationId = latestConsultation.id;
@@ -848,11 +849,24 @@ export function createRouter(io?: Server) {
         // Sort in memory instead of database
         recommendations = allRecs.sort((a, b) => (a.priority || 0) - (b.priority || 0));
         
-        // Fetch sales assist separately
-        salesAssist = await prisma.salesOrderAssist.findMany({
+        // Fetch sales assist separately (get first one)
+        const salesAssistList = await prisma.salesOrderAssist.findMany({
           where: { consultationId },
-          take: 10,
+          take: 1,
         }).catch(() => []);
+        
+        salesAssist = salesAssistList.length > 0 ? salesAssistList[0] : null;
+        
+        // If there's a draft order ID, fetch draft order details from Shopify
+        if (salesAssist?.shopifyDraftId) {
+          try {
+            const draftOrderGid = salesAssist.shopifyDraftId;
+            draftOrderDetails = await getShopifyDraftOrder(draftOrderGid);
+          } catch (err) {
+            console.error("Error fetching draft order details:", err);
+            // Continue without draft order details
+          }
+        }
       }
 
       // Combine the data
@@ -864,6 +878,7 @@ export function createRouter(io?: Server) {
           ...latestConsultation,
           recommendations,
           salesAssist,
+          draftOrderDetails, // Include draft order details if available
         }] : [],
       };
 

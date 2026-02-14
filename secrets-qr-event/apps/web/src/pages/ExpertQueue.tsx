@@ -309,11 +309,11 @@ export default function ExpertQueue() {
                                   onClick={async () => {
                                     if (!token.consultation?.id) return;
                                     try {
+                                      // token_near only needs name, backend will handle token number if needed
                                       const result = await sendWhatsAppNotification(token.consultation.id, {
                                         templateKey: "token_near",
                                         parameters: [
                                           { type: "text", text: token.visitor?.name || "Customer" },
-                                          { type: "text", text: String(token.tokenNo) },
                                         ],
                                       });
                                       if (result.success) {
@@ -335,11 +335,11 @@ export default function ExpertQueue() {
                                   onClick={async () => {
                                     if (!token.consultation?.id) return;
                                     try {
+                                      // consultation_reminder only needs name, backend will handle token number if needed
                                       const result = await sendWhatsAppNotification(token.consultation.id, {
                                         templateKey: "consultation_reminder",
                                         parameters: [
                                           { type: "text", text: token.visitor?.name || "Customer" },
-                                          { type: "text", text: String(token.tokenNo) },
                                         ],
                                       });
                                       if (result.success) {

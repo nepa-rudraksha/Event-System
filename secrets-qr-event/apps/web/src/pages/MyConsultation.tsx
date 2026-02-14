@@ -27,7 +27,8 @@ export default function MyConsultation() {
   }, [session?.visitorId, slug]); // Removed navigate from deps to prevent loops
 
   const consultation = summary?.consultations?.[0];
-  const recommendations = consultation?.recommendations ?? [];
+  const draftOrderDetails = consultation?.draftOrderDetails;
+  const draftOrderProducts = draftOrderDetails?.lineItems ?? [];
 
   return (
     <AppShell>
@@ -66,63 +67,70 @@ export default function MyConsultation() {
           </SectionCard>
         )}
 
-        {/* Recommendations */}
-        <SectionCard>
-          <h3 className="text-heading text-textDark mb-4">Expert Recommendations</h3>
-          {recommendations.length === 0 ? (
-            <p className="text-body text-textLight">
-              Recommendations will appear here after your consultation is completed.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {recommendations
-                .sort((a: any, b: any) => a.priority - b.priority)
-                .map((item: any) => (
-                  <div key={item.id} className="rounded-xl border-2 border-creamDark bg-white p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Chip>Priority {item.priority}</Chip>
+        {/* Draft Order Products */}
+        {draftOrderProducts.length > 0 && (
+          <SectionCard>
+            <h3 className="text-heading text-textDark mb-4">Draft Order Products</h3>
+            <div className="space-y-3">
+              {draftOrderProducts.map((item: any, index: number) => (
+                <div key={item.id || index} className="rounded-xl border-2 border-creamDark bg-white p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="text-base font-semibold text-textDark mb-1">
+                        {item.title || "Product"}
+                      </div>
+                      {item.variant?.title && (
+                        <div className="text-sm text-textMedium mb-2">
+                          Variant: {item.variant.title}
                         </div>
-                        <div className="text-base font-semibold text-textDark mb-2">
-                          {item.productDetails?.title || item.reason}
-                        </div>
-                        {item.productDetails?.images?.[0] && (
-                          <img
-                            src={item.productDetails.images[0].url}
-                            alt=""
-                            className="w-32 h-32 object-cover rounded-lg mb-2"
-                          />
-                        )}
-                        {item.productDetails?.metafields?.short_description && (
-                          <div className="text-sm text-textMedium mb-2">
-                            {item.productDetails.metafields.short_description}
-                          </div>
-                        )}
-                        {item.notes && (
-                          <div className="text-sm text-textMedium mt-2">{item.notes}</div>
-                        )}
-                        {item.checkoutLink && (
-                          <div className="mt-3">
-                            <PrimaryButton
-                              onClick={() => window.open(item.checkoutLink, "_blank")}
-                            >
-                              <div className="flex items-center justify-center gap-2">
-                                <ShoppingCartIcon size={18} />
-                                <span>Proceed to Checkout</span>
-                              </div>
-                            </PrimaryButton>
-                          </div>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-textMedium">
+                        <span>Quantity: {item.quantity || 1}</span>
+                        {item.discountedUnitPrice && (
+                          <span className="font-semibold text-textDark">
+                            Price: ₹{parseFloat(item.discountedUnitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
                         )}
                       </div>
+                      {item.customAttributes && item.customAttributes.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {item.customAttributes.map((attr: any, attrIdx: number) => (
+                            <div key={attrIdx} className="text-xs text-textLight">
+                              <span className="font-semibold">{attr.key}:</span> {attr.value}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                </div>
+              ))}
+              {draftOrderDetails?.appliedDiscount && (
+                <div className="mt-3 p-3 rounded-lg bg-gold/10 border border-gold">
+                  <div className="text-sm font-semibold text-textDark mb-1">Discount Applied</div>
+                  <div className="text-sm text-textMedium">
+                    {draftOrderDetails.appliedDiscount.description || draftOrderDetails.appliedDiscount.title || "Discount"}
+                    {draftOrderDetails.appliedDiscount.valueType === "PERCENTAGE" 
+                      ? `: ${draftOrderDetails.appliedDiscount.value}%`
+                      : `: ₹${(typeof draftOrderDetails.appliedDiscount.amount === 'number' ? draftOrderDetails.appliedDiscount.amount : parseFloat(draftOrderDetails.appliedDiscount.amount || "0")).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                  </div>
+                </div>
+              )}
+              {draftOrderDetails?.totalPrice && (
+                <div className="mt-3 p-3 rounded-lg bg-cream border border-creamDark">
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-semibold text-textDark">Total:</span>
+                    <span className="text-lg font-bold text-gold">
+                      ₹{parseFloat(draftOrderDetails.totalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </SectionCard>
+          </SectionCard>
+        )}
 
-        {/* Shopify Invoice/Checkout Link */}
+        {/* Checkout Invoice Link */}
         {consultation?.salesAssist?.checkoutLink && (
           <SectionCard>
             <h3 className="text-heading text-textDark mb-3">Complete Your Purchase</h3>
