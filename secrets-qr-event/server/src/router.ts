@@ -572,9 +572,38 @@ export function createRouter(io?: Server) {
       const { eventId } = req.params;
       const items = await prisma.itineraryItem.findMany({
         where: { eventId, isActive: true },
-        orderBy: [{ timeLabel: "asc" }],
       });
-      res.json(items);
+      
+      // Sort by time properly (parse timeLabel and convert to comparable format)
+      const sortedItems = items.sort((a, b) => {
+        const parseTime = (timeLabel: string): number => {
+          // Remove spaces and convert to uppercase
+          const cleaned = timeLabel.trim().toUpperCase();
+          
+          // Extract hour and minute, and AM/PM
+          const match = cleaned.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/);
+          if (!match) return 0;
+          
+          let hour = parseInt(match[1], 10);
+          const minute = parseInt(match[2], 10);
+          const period = match[3] || '';
+          
+          // Convert to 24-hour format
+          if (period === 'PM' && hour !== 12) {
+            hour += 12;
+          } else if (period === 'AM' && hour === 12) {
+            hour = 0;
+          }
+          
+          return hour * 60 + minute; // Convert to minutes for easy comparison
+        };
+        
+        const timeA = parseTime(a.timeLabel);
+        const timeB = parseTime(b.timeLabel);
+        return timeA - timeB;
+      });
+      
+      res.json(sortedItems);
     })
   );
 

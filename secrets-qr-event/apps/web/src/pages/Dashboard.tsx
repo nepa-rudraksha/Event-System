@@ -3,9 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppBar, AppShell, Chip, SectionCard, PrimaryButton } from "../components/ui";
 import { CalendarIcon, MessageIcon, UserIcon } from "../components/Icons";
 import { QRScanner } from "../components/QRScanner";
-import { fetchAnnouncements, fetchVisitorSummary } from "../lib/api";
+import { fetchAnnouncements, fetchVisitorSummary, fetchItinerary } from "../lib/api";
 import { getSession } from "../lib/session";
-import type { Announcement } from "../lib/types";
+import type { Announcement, ItineraryItem } from "../lib/types";
 
 export default function Dashboard() {
   const { slug = "bangalore" } = useParams();
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const session = getSession();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [summary, setSummary] = useState<any>(null);
+  const [itineraryItems, setItineraryItems] = useState<ItineraryItem[]>([]);
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   useEffect(() => {
@@ -27,6 +28,9 @@ export default function Dashboard() {
     fetchVisitorSummary(session.visitorId)
       .then((data) => !cancelled && setSummary(data))
       .catch(() => !cancelled && setSummary(null));
+    fetchItinerary(session.eventId)
+      .then((data) => !cancelled && setItineraryItems(data))
+      .catch(() => !cancelled && setItineraryItems([]));
     return () => {
       cancelled = true;
     };
@@ -107,11 +111,25 @@ export default function Dashboard() {
           </Link>
         }
       >
-        <div className="flex flex-wrap gap-3">
-          <Chip>Talk + Book Launch</Chip>
-          <Chip>Rare Darshan</Chip>
-          <Chip>Consultations</Chip>
-        </div>
+        {itineraryItems.length === 0 ? (
+          <p className="text-body text-textLight text-center py-2">
+            No schedule published yet.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {itineraryItems.slice(0, 3).map((item) => (
+              <div key={item.id} className="flex items-center gap-2">
+                <Chip className="min-w-[80px] text-xs">{item.timeLabel}</Chip>
+                <span className="text-body text-textDark flex-1">{item.title}</span>
+              </div>
+            ))}
+            {itineraryItems.length > 3 && (
+              <p className="text-sm text-textLight text-center pt-1">
+                +{itineraryItems.length - 3} more items
+              </p>
+            )}
+          </div>
+        )}
       </SectionCard>
 
       {/* Consultation Info */}

@@ -17,7 +17,29 @@ export default function Itinerary() {
       navigate(`/e/${slug}`);
       return;
     }
-    fetchItinerary(session.eventId).then(setItems).catch(() => setItems([]));
+    fetchItinerary(session.eventId)
+      .then((data) => {
+        // Sort by time properly (backend should already sort, but this is a backup)
+        const sorted = [...data].sort((a, b) => {
+          const parseTime = (timeLabel: string): number => {
+            const cleaned = timeLabel.trim().toUpperCase();
+            const match = cleaned.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/);
+            if (!match) return 0;
+            let hour = parseInt(match[1], 10);
+            const minute = parseInt(match[2], 10);
+            const period = match[3] || '';
+            if (period === 'PM' && hour !== 12) {
+              hour += 12;
+            } else if (period === 'AM' && hour === 12) {
+              hour = 0;
+            }
+            return hour * 60 + minute;
+          };
+          return parseTime(a.timeLabel) - parseTime(b.timeLabel);
+        });
+        setItems(sorted);
+      })
+      .catch(() => setItems([]));
   }, [navigate, session, slug]);
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
